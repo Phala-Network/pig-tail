@@ -32,6 +32,15 @@ LISTEN defaults to 127.0.0.1:31081 for local use. A separate Compose service
 that is reached by another container must set LISTEN to 0.0.0.0:31081 and keep
 the port on an internal network rather than publishing it directly.
 
+The packaged `phala-tail healthcheck` command checks the local listener's
+`/healthz` endpoint with a five-second timeout. It does not initialize dstack or
+NVIDIA evidence collection and does not require TOKEN. Wildcard LISTEN addresses
+map to loopback for the probe. Redirects and non-2xx statuses fail. With TLS
+enabled, the probe verifies certificate trust, SAN and the configured listener
+certificate; it does not disable TLS verification. Use it as an exec-form
+container healthcheck. Backend readiness remains a separate dependency and
+inference acceptance check.
+
 ## TLS and attestation report versions
 
 Without both TLS_CERT_PATH and TLS_KEY_PATH, TAIL listens as local HTTP and

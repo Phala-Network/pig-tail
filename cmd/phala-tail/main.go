@@ -18,6 +18,16 @@ import (
 
 var version = "v0.1.0"
 
+func runCommand(args []string, serve func() error, healthcheck func() error) error {
+	if len(args) == 1 {
+		return serve()
+	}
+	if len(args) == 2 && args[1] == "healthcheck" {
+		return healthcheck()
+	}
+	return errors.New("usage: phala-tail [healthcheck]")
+}
+
 func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -41,7 +51,7 @@ func run() error {
 	defer handler.Close()
 	listen := os.Getenv("LISTEN")
 	if listen == "" {
-		listen = "127.0.0.1:31081"
+		listen = defaultListenAddress
 	}
 	server := &http.Server{Addr: listen, Handler: handler, ReadHeaderTimeout: 30 * time.Second, TLSConfig: transportTLS}
 	stopped := make(chan struct{})
@@ -69,7 +79,7 @@ func run() error {
 }
 
 func main() {
-	if err := run(); err != nil {
+	if err := runCommand(os.Args, run, runHealthcheck); err != nil {
 		log.Fatal(err)
 	}
 }

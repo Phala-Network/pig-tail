@@ -1,0 +1,91 @@
+{
+  "evidence_archive_sha256": "3a7e305ccc44a4410d13ac55cbc4280f6fc01082722af024f715246905a109e3",
+  "expected_image": "sha256:c4fe40487178fd7738600562c114e2198d281d5ca6c0f5a265019369f6af76c4",
+  "name": "pig-tail-healthcheck-cpu-r3",
+  "negative_control": {
+    "expected_exit": 1,
+    "proved_default_redirect_following": true,
+    "removed": "http.Client.CheckRedirect"
+  },
+  "passed": true,
+  "positive_passed_tests": [
+    "TestHealthcheckRejectsNon2xx/Found",
+    "TestHealthcheckRejectsNon2xx/Service_Unavailable",
+    "TestHealthcheckRejectsNon2xx",
+    null
+  ],
+  "prior_r2_report_sha256": "89da5d57ff36faf7f85c0a25783885f23a3291d2d8a3131cd5e34a10bd2fd607",
+  "schema": "phala.pig-tail.healthcheck.supplement.v1",
+  "scope": "Fixed-c4 CPU-only supplement for TestHealthcheckRejectsNon2xx. It proves local 302 redirect rejection, not backend readiness, attestation, Dstack, GPU, service, route, deployment, or credential behavior.",
+  "source_archive_sha256": "efe72e6b24879efbc932f4e53680d68e493346741788854ffa8fcc5e48da3977",
+  "source_hashes": {
+    "Dockerfile": "4e4312f800d23527565d845fca04d2db7527f8850028f52ecdbb56a533f7fc19",
+    "LICENSE": "605e9047a563c5c8396ffb18232aa4304ec56586aee537c45064c6fb425e44ad",
+    "README.md": "4407da7c27475314b952c6e1ff0626132de63b9940995473d20c070dd31f60f5",
+    "cmd/phala-tail/healthcheck.go": "96e0d3a9e202de05b2a3106533d149d92d3223608acc8866b306d96026e23e3e",
+    "cmd/phala-tail/healthcheck_test.go": "18bf73d244d7316f377c447eb97539477e555e0df8da54a43c221cd8dde7fc5d",
+    "cmd/phala-tail/main.go": "90e407b6b34035eb2583457e16a056d5fa963e784b0f7c0a3871cbe393e5da2f",
+    "cmd/phala-tail/tls.go": "c91f368d019e9348137d0012fdc98495afa0d0dab93a2ddec7251db37312c6bb",
+    "cmd/phala-tail/tls_test.go": "76c134e39012c62969d36de4b2618f2ff164ea5047ba223388cc43af9503d4d3",
+    "go.mod": "f513543c6ea8cfe623f10d7dff976b3428c1069348fe5f3d9d8eea7adfbc1890",
+    "go.sum": "5224908112865cb36354b9121b2b27846948239f7e956d8eadcf080fc538fe05",
+    "internal/app/tail/handler.go": "7ab68baaffe2974d341619bb27dc1a76f7b2313fcc2212c1b7eed9ed0642a39e",
+    "internal/app/tail/handler_test.go": "9a497149a07ab2696ef47105b727f6506a503bc23f6e27fabd5526f8058cf0fa",
+    "internal/app/tail/tls_binding_test.go": "97141f031e8b9cb80f5e19096abe0e6178f7fa23894b2ddd25310fe2447eee5b",
+    "internal/infra/http/buffer_pool.go": "9dca8a368ce4aff59105ae9cc2fef3acf4c940f3ad52df7ad6118c6db2547d54",
+    "internal/infra/http/headers.go": "6505e1f6bec0c7f8fd893a4771d6c81e15b1d77586f158a33b2350eaa194348a",
+    "internal/infra/http/status_recorder.go": "e7d1b16a558494c4faca92b6cb5496f7e7d4eda6768de276f945a0a6cd3fbc61",
+    "internal/infra/http/status_recorder_test.go": "d48da3aba97b6ed095602bd054d72ef2cd389424b779e2ccf0e9a1fe2fdd7c0a",
+    "internal/infra/openai/completion_usage.go": "ce38e1db0495d38f27044274aeb0a825e383afad11a947a722d5af1bb42a5356",
+    "internal/infra/openai/completion_usage_test.go": "3f6e067b0894d6395df8158487cfdc4375db74fb05b3759db22b41912f0a9b5a",
+    "internal/infra/openai/response.go": "3ef8e8ef989c43646d601561d00c16cb7fe8bcebd22e774d8839e9de21104f58",
+    "internal/runtime/attestation/dstack.go": "4885bea1f81b18497380e01be399c1d261b60ce51d0b3a47fe5f8bbf300ea7b4",
+    "internal/runtime/attestation/nvidia.go": "ed1876f0405980b71a435977a9621a7a6f1208661f011ad7c7713d9b81bf945d",
+    "internal/runtime/attestation/nvidia_nvml.go": "1f46dbe7613ae0fd964d4f9d761ce82cbdc5106404680fc0052b72eca65d4bd1",
+    "internal/runtime/attestation/nvidia_root_cert.go": "d857028bfb2d1ba606ad995f4bda2c415e23bf629ebabd1a9726525c413df198",
+    "internal/runtime/attestation/nvidia_stub.go": "ac546413d33c55c37267b50f3adca83fb6aab38aa793fa1326ba657d81fa1726",
+    "internal/runtime/attestation/report.go": "b716d4d4729bd352f39c67f1e0d1b8d95988985e0aa8dcdbf37d9528ee26a5bc",
+    "internal/runtime/attestation/report_test.go": "48363cd56ec1db66af25d136a015e82d549e84eae245c6924c315b0ab9912377",
+    "internal/runtime/attestation/signing.go": "a1a823ef5e03d0a824058866600f37e5294076ea6d1597b49da4dd13be2d7020",
+    "internal/runtime/attestation/tls.go": "d17ae97106b77e79bfb80739e3294ec6b56ed0ae9c81265027726d8e1fe93f4a"
+  },
+  "steps": {
+    "gofmt": {
+      "argv": [
+        "gofmt",
+        "-l",
+        "cmd/phala-tail/main.go",
+        "cmd/phala-tail/healthcheck.go",
+        "cmd/phala-tail/healthcheck_test.go"
+      ],
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "negative-with-default-redirects": {
+      "argv": [
+        "go",
+        "test",
+        "-json",
+        "-count=1",
+        "-run",
+        "^TestHealthcheckRejectsNon2xx$",
+        "./cmd/phala-tail"
+      ],
+      "exit": 1,
+      "log_sha256": "f0333c6fcc15ab432f05ef5d40a7ac1ad02f750de17fc85ecb71014ccca43031"
+    },
+    "positive": {
+      "argv": [
+        "go",
+        "test",
+        "-json",
+        "-count=1",
+        "-run",
+        "^TestHealthcheckRejectsNon2xx$",
+        "./cmd/phala-tail"
+      ],
+      "exit": 0,
+      "log_sha256": "e244b6f149260f8314b2071f3c5285849c82bc7558cab560d42b148903df61e5"
+    }
+  }
+}
