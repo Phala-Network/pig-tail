@@ -1,0 +1,294 @@
+{
+  "archive_sha256": "9db47fa8052e0db4ee38c47250fb923467996ed11d0d9b045e8207c54cce2ef0",
+  "binary_sha256": "7d23ecfa59ee13e20158d8b6b323a407d5e428aa6582e519d2ee0b26f9b31448",
+  "evidence_archive_sha256": "d5aae1ca58b76e29300245c8da776319e2f36adcb281b6195b7afbe856026aa3",
+  "expected_image": "sha256:c4fe40487178fd7738600562c114e2198d281d5ca6c0f5a265019369f6af76c4",
+  "format_changed": false,
+  "formatted_archive_sha256": null,
+  "name": "pig-tail-v010-cpu-r1",
+  "passed": true,
+  "persistent_free_bytes_before": 4860149760,
+  "schema": "phala.pig-tail.cpu-verification.v1",
+  "scope": "Fixed c4 CPU-only container, runc, network none, GPU void; no model launch, NVIDIA runtime attestation, service restart, deployment, route change, or credential input.",
+  "source_hashes_after_format": {
+    "Dockerfile": "4e4312f800d23527565d845fca04d2db7527f8850028f52ecdbb56a533f7fc19",
+    "LICENSE": "605e9047a563c5c8396ffb18232aa4304ec56586aee537c45064c6fb425e44ad",
+    "README.md": "d7d04703ca4ba5348a98ea22d631fc228aad0eccffd2cedaa08ffb5ad501413a",
+    "cmd/phala-tail/main.go": "d944f7d5c947a3586b47f1d15c29a01c35f04b87010be47989511ef14943b71c",
+    "cmd/phala-tail/tls.go": "c91f368d019e9348137d0012fdc98495afa0d0dab93a2ddec7251db37312c6bb",
+    "cmd/phala-tail/tls_test.go": "76c134e39012c62969d36de4b2618f2ff164ea5047ba223388cc43af9503d4d3",
+    "go.mod": "f513543c6ea8cfe623f10d7dff976b3428c1069348fe5f3d9d8eea7adfbc1890",
+    "go.sum": "5224908112865cb36354b9121b2b27846948239f7e956d8eadcf080fc538fe05",
+    "internal/app/tail/handler.go": "7ab68baaffe2974d341619bb27dc1a76f7b2313fcc2212c1b7eed9ed0642a39e",
+    "internal/app/tail/handler_test.go": "9a497149a07ab2696ef47105b727f6506a503bc23f6e27fabd5526f8058cf0fa",
+    "internal/app/tail/tls_binding_test.go": "97141f031e8b9cb80f5e19096abe0e6178f7fa23894b2ddd25310fe2447eee5b",
+    "internal/infra/http/buffer_pool.go": "9dca8a368ce4aff59105ae9cc2fef3acf4c940f3ad52df7ad6118c6db2547d54",
+    "internal/infra/http/headers.go": "6505e1f6bec0c7f8fd893a4771d6c81e15b1d77586f158a33b2350eaa194348a",
+    "internal/infra/http/status_recorder.go": "e7d1b16a558494c4faca92b6cb5496f7e7d4eda6768de276f945a0a6cd3fbc61",
+    "internal/infra/http/status_recorder_test.go": "d48da3aba97b6ed095602bd054d72ef2cd389424b779e2ccf0e9a1fe2fdd7c0a",
+    "internal/infra/openai/completion_usage.go": "ce38e1db0495d38f27044274aeb0a825e383afad11a947a722d5af1bb42a5356",
+    "internal/infra/openai/completion_usage_test.go": "3f6e067b0894d6395df8158487cfdc4375db74fb05b3759db22b41912f0a9b5a",
+    "internal/infra/openai/response.go": "3ef8e8ef989c43646d601561d00c16cb7fe8bcebd22e774d8839e9de21104f58",
+    "internal/runtime/attestation/dstack.go": "4885bea1f81b18497380e01be399c1d261b60ce51d0b3a47fe5f8bbf300ea7b4",
+    "internal/runtime/attestation/nvidia.go": "ed1876f0405980b71a435977a9621a7a6f1208661f011ad7c7713d9b81bf945d",
+    "internal/runtime/attestation/nvidia_nvml.go": "1f46dbe7613ae0fd964d4f9d761ce82cbdc5106404680fc0052b72eca65d4bd1",
+    "internal/runtime/attestation/nvidia_root_cert.go": "d857028bfb2d1ba606ad995f4bda2c415e23bf629ebabd1a9726525c413df198",
+    "internal/runtime/attestation/nvidia_stub.go": "ac546413d33c55c37267b50f3adca83fb6aab38aa793fa1326ba657d81fa1726",
+    "internal/runtime/attestation/report.go": "b716d4d4729bd352f39c67f1e0d1b8d95988985e0aa8dcdbf37d9528ee26a5bc",
+    "internal/runtime/attestation/report_test.go": "48363cd56ec1db66af25d136a015e82d549e84eae245c6924c315b0ab9912377",
+    "internal/runtime/attestation/signing.go": "a1a823ef5e03d0a824058866600f37e5294076ea6d1597b49da4dd13be2d7020",
+    "internal/runtime/attestation/tls.go": "d17ae97106b77e79bfb80739e3294ec6b56ed0ae9c81265027726d8e1fe93f4a"
+  },
+  "source_hashes_before_format": {
+    "Dockerfile": "4e4312f800d23527565d845fca04d2db7527f8850028f52ecdbb56a533f7fc19",
+    "LICENSE": "605e9047a563c5c8396ffb18232aa4304ec56586aee537c45064c6fb425e44ad",
+    "README.md": "d7d04703ca4ba5348a98ea22d631fc228aad0eccffd2cedaa08ffb5ad501413a",
+    "cmd/phala-tail/main.go": "d944f7d5c947a3586b47f1d15c29a01c35f04b87010be47989511ef14943b71c",
+    "cmd/phala-tail/tls.go": "c91f368d019e9348137d0012fdc98495afa0d0dab93a2ddec7251db37312c6bb",
+    "cmd/phala-tail/tls_test.go": "76c134e39012c62969d36de4b2618f2ff164ea5047ba223388cc43af9503d4d3",
+    "go.mod": "f513543c6ea8cfe623f10d7dff976b3428c1069348fe5f3d9d8eea7adfbc1890",
+    "go.sum": "5224908112865cb36354b9121b2b27846948239f7e956d8eadcf080fc538fe05",
+    "internal/app/tail/handler.go": "7ab68baaffe2974d341619bb27dc1a76f7b2313fcc2212c1b7eed9ed0642a39e",
+    "internal/app/tail/handler_test.go": "9a497149a07ab2696ef47105b727f6506a503bc23f6e27fabd5526f8058cf0fa",
+    "internal/app/tail/tls_binding_test.go": "97141f031e8b9cb80f5e19096abe0e6178f7fa23894b2ddd25310fe2447eee5b",
+    "internal/infra/http/buffer_pool.go": "9dca8a368ce4aff59105ae9cc2fef3acf4c940f3ad52df7ad6118c6db2547d54",
+    "internal/infra/http/headers.go": "6505e1f6bec0c7f8fd893a4771d6c81e15b1d77586f158a33b2350eaa194348a",
+    "internal/infra/http/status_recorder.go": "e7d1b16a558494c4faca92b6cb5496f7e7d4eda6768de276f945a0a6cd3fbc61",
+    "internal/infra/http/status_recorder_test.go": "d48da3aba97b6ed095602bd054d72ef2cd389424b779e2ccf0e9a1fe2fdd7c0a",
+    "internal/infra/openai/completion_usage.go": "ce38e1db0495d38f27044274aeb0a825e383afad11a947a722d5af1bb42a5356",
+    "internal/infra/openai/completion_usage_test.go": "3f6e067b0894d6395df8158487cfdc4375db74fb05b3759db22b41912f0a9b5a",
+    "internal/infra/openai/response.go": "3ef8e8ef989c43646d601561d00c16cb7fe8bcebd22e774d8839e9de21104f58",
+    "internal/runtime/attestation/dstack.go": "4885bea1f81b18497380e01be399c1d261b60ce51d0b3a47fe5f8bbf300ea7b4",
+    "internal/runtime/attestation/nvidia.go": "ed1876f0405980b71a435977a9621a7a6f1208661f011ad7c7713d9b81bf945d",
+    "internal/runtime/attestation/nvidia_nvml.go": "1f46dbe7613ae0fd964d4f9d761ce82cbdc5106404680fc0052b72eca65d4bd1",
+    "internal/runtime/attestation/nvidia_root_cert.go": "d857028bfb2d1ba606ad995f4bda2c415e23bf629ebabd1a9726525c413df198",
+    "internal/runtime/attestation/nvidia_stub.go": "ac546413d33c55c37267b50f3adca83fb6aab38aa793fa1326ba657d81fa1726",
+    "internal/runtime/attestation/report.go": "b716d4d4729bd352f39c67f1e0d1b8d95988985e0aa8dcdbf37d9528ee26a5bc",
+    "internal/runtime/attestation/report_test.go": "48363cd56ec1db66af25d136a015e82d549e84eae245c6924c315b0ab9912377",
+    "internal/runtime/attestation/signing.go": "a1a823ef5e03d0a824058866600f37e5294076ea6d1597b49da4dd13be2d7020",
+    "internal/runtime/attestation/tls.go": "d17ae97106b77e79bfb80739e3294ec6b56ed0ae9c81265027726d8e1fe93f4a"
+  },
+  "steps": {
+    "build-info": {
+      "argv": [
+        "go",
+        "version",
+        "-m",
+        "/var/volatile/dstack/persistent/pig-sglang-native-qos-20260915/pig-tail-v010-cpu-r1/phala-tail-cgo"
+      ],
+      "exit": 0,
+      "log_sha256": "7768772a2d6559c815f7988f4835405e9b85de3f335c1f62f0d79cce308fa3ef"
+    },
+    "cgo-build": {
+      "argv": [
+        "go",
+        "build",
+        "-trimpath",
+        "-buildvcs=false",
+        "-o",
+        "/var/volatile/dstack/persistent/pig-sglang-native-qos-20260915/pig-tail-v010-cpu-r1/phala-tail-cgo",
+        "./cmd/phala-tail"
+      ],
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "cgo-files": {
+      "argv": [
+        "go",
+        "list",
+        "-f",
+        "{{.CgoFiles}}",
+        "./internal/runtime/attestation"
+      ],
+      "exit": 0,
+      "log_sha256": "c6001fa2d622afc3530be323cdc3a938b263e08d8088d646987eeaf3710ce595"
+    },
+    "dependencies": {
+      "argv": [
+        "go",
+        "list",
+        "-deps",
+        "./cmd/phala-tail"
+      ],
+      "exit": 0,
+      "log_sha256": "7bf5fd788b549e6e952b9fdb9e473a5d8e911bd2a31efffd4c2374020db4c572"
+    },
+    "dynamic-libraries": {
+      "argv": [
+        "ldd",
+        "/var/volatile/dstack/persistent/pig-sglang-native-qos-20260915/pig-tail-v010-cpu-r1/phala-tail-cgo"
+      ],
+      "exit": 0,
+      "log_sha256": "b9e47aa1ca422d4016eaf91bb827e246d4d8a3054943c898c8d5ee1827a4172f"
+    },
+    "go-env": {
+      "argv": [
+        "go",
+        "env",
+        "GOTOOLCHAIN",
+        "GOPATH",
+        "GOCACHE",
+        "GOPROXY",
+        "GOMAXPROCS",
+        "GOFLAGS",
+        "CGO_ENABLED",
+        "GOOS",
+        "GOARCH"
+      ],
+      "exit": 0,
+      "log_sha256": "771be1136b4832c7bc8a14ff797c7c00077df463c5705247f96ba033cd7993b2"
+    },
+    "go-version": {
+      "argv": [
+        "go",
+        "version"
+      ],
+      "exit": 0,
+      "log_sha256": "07b0d66d21bcdfdc8456adcb17203f3af8656dc11549da62e6940f99b8d45444"
+    },
+    "gofmt-after": {
+      "argv": [
+        "gofmt",
+        "-l",
+        "cmd/phala-tail/main.go",
+        "cmd/phala-tail/tls.go",
+        "cmd/phala-tail/tls_test.go",
+        "internal/app/tail/handler.go",
+        "internal/app/tail/handler_test.go",
+        "internal/app/tail/tls_binding_test.go",
+        "internal/infra/http/buffer_pool.go",
+        "internal/infra/http/headers.go",
+        "internal/infra/http/status_recorder.go",
+        "internal/infra/http/status_recorder_test.go",
+        "internal/infra/openai/completion_usage.go",
+        "internal/infra/openai/completion_usage_test.go",
+        "internal/infra/openai/response.go",
+        "internal/runtime/attestation/dstack.go",
+        "internal/runtime/attestation/nvidia.go",
+        "internal/runtime/attestation/nvidia_nvml.go",
+        "internal/runtime/attestation/nvidia_root_cert.go",
+        "internal/runtime/attestation/nvidia_stub.go",
+        "internal/runtime/attestation/report.go",
+        "internal/runtime/attestation/report_test.go",
+        "internal/runtime/attestation/signing.go",
+        "internal/runtime/attestation/tls.go"
+      ],
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "gofmt-before": {
+      "argv": [
+        "gofmt",
+        "-l",
+        "cmd/phala-tail/main.go",
+        "cmd/phala-tail/tls.go",
+        "cmd/phala-tail/tls_test.go",
+        "internal/app/tail/handler.go",
+        "internal/app/tail/handler_test.go",
+        "internal/app/tail/tls_binding_test.go",
+        "internal/infra/http/buffer_pool.go",
+        "internal/infra/http/headers.go",
+        "internal/infra/http/status_recorder.go",
+        "internal/infra/http/status_recorder_test.go",
+        "internal/infra/openai/completion_usage.go",
+        "internal/infra/openai/completion_usage_test.go",
+        "internal/infra/openai/response.go",
+        "internal/runtime/attestation/dstack.go",
+        "internal/runtime/attestation/nvidia.go",
+        "internal/runtime/attestation/nvidia_nvml.go",
+        "internal/runtime/attestation/nvidia_root_cert.go",
+        "internal/runtime/attestation/nvidia_stub.go",
+        "internal/runtime/attestation/report.go",
+        "internal/runtime/attestation/report_test.go",
+        "internal/runtime/attestation/signing.go",
+        "internal/runtime/attestation/tls.go"
+      ],
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "gofmt-write": {
+      "argv": [
+        "gofmt",
+        "-w",
+        "cmd/phala-tail/main.go",
+        "cmd/phala-tail/tls.go",
+        "cmd/phala-tail/tls_test.go",
+        "internal/app/tail/handler.go",
+        "internal/app/tail/handler_test.go",
+        "internal/app/tail/tls_binding_test.go",
+        "internal/infra/http/buffer_pool.go",
+        "internal/infra/http/headers.go",
+        "internal/infra/http/status_recorder.go",
+        "internal/infra/http/status_recorder_test.go",
+        "internal/infra/openai/completion_usage.go",
+        "internal/infra/openai/completion_usage_test.go",
+        "internal/infra/openai/response.go",
+        "internal/runtime/attestation/dstack.go",
+        "internal/runtime/attestation/nvidia.go",
+        "internal/runtime/attestation/nvidia_nvml.go",
+        "internal/runtime/attestation/nvidia_root_cert.go",
+        "internal/runtime/attestation/nvidia_stub.go",
+        "internal/runtime/attestation/report.go",
+        "internal/runtime/attestation/report_test.go",
+        "internal/runtime/attestation/signing.go",
+        "internal/runtime/attestation/tls.go"
+      ],
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "module-verify": {
+      "argv": [
+        "go",
+        "mod",
+        "verify"
+      ],
+      "exit": 0,
+      "log_sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+    },
+    "race": {
+      "argv": [
+        "go",
+        "test",
+        "-race",
+        "-count=1",
+        "-timeout=240s",
+        "./cmd/phala-tail",
+        "./internal/app/tail",
+        "./internal/infra/http",
+        "./internal/infra/openai",
+        "./internal/runtime/attestation"
+      ],
+      "exit": 0,
+      "log_sha256": "ca4dabc0fb1e1607230a212378edbea6b6286161fecbcb533b1869b7270d3351"
+    },
+    "tests": {
+      "argv": [
+        "go",
+        "test",
+        "-json",
+        "-count=1",
+        "-timeout=240s",
+        "./cmd/phala-tail",
+        "./internal/app/tail",
+        "./internal/infra/http",
+        "./internal/infra/openai",
+        "./internal/runtime/attestation"
+      ],
+      "exit": 0,
+      "log_sha256": "d0cc1e6c43971295774ee1f2fad58b8ec5ff8f12e40f11a66b66892a6305bb00"
+    },
+    "vet": {
+      "argv": [
+        "go",
+        "vet",
+        "./cmd/phala-tail",
+        "./internal/app/tail",
+        "./internal/infra/http",
+        "./internal/infra/openai",
+        "./internal/runtime/attestation"
+      ],
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

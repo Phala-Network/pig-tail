@@ -1,0 +1,402 @@
+package attestation
+
+import (
+	"bytes"
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+)
+
+type Config struct {
+	TLSCertPath string
+	// TLSCertSPKISHA256 binds a certificate already loaded by the TLS listener.
+	// When present it takes precedence over the legacy external certificate file.
+	TLSCertSPKISHA256     []byte
+	GPUArch               string
+	NVIDIAPayload         string
+	NVIDIAPayloadFile     string
+	NVIDIAPayloadURL      string
+	NVIDIAPayloadAuth     string
+	NVIDIACommand         string
+	NVIDIACommandArgs     []string
+	NVIDIACommandTimeout  time.Duration
+	RequireNVIDIAEvidence bool
+}
+
+type Service struct {
+	cfg     Config
+	signers Signers
+	dstack  Dstack
+	nvidia  nvidiaCollector
+}
+
+type ReportRequest struct {
+	SigningAlgo string
+	NonceHex    string
+	Version     int
+}
+
+func NewService(cfg Config, dstack Dstack) (*Service, error) {
+	if len(cfg.TLSCertSPKISHA256) != 0 && len(cfg.TLSCertSPKISHA256) != sha256.Size {
+		return nil, fmt.Errorf("TLS certificate SPKI fingerprint must contain 32 bytes")
+	}
+	cfg.TLSCertSPKISHA256 = append([]byte(nil), cfg.TLSCertSPKISHA256...)
+	signers, err := NewSigners()
+	if err != nil {
+		return nil, err
+	}
+	if cfg.GPUArch == "" {
+		cfg.GPUArch = "HOPPER"
+	}
+	if cfg.NVIDIACommandTimeout <= 0 {
+		cfg.NVIDIACommandTimeout = 30 * time.Second
+	}
+	return &Service{cfg: cfg, signers: signers, dstack: dstack, nvidia: newNativeNVIDIACollector()}, nil
+}
+
+func (s *Service) Generate(ctx context.Context, req ReportRequest) (map[string]any, error) {
+	if req.Version == 0 {
+		req.Version = 1
+	}
+	if req.Version != 1 && req.Version != 2 {
+		return nil, badRequestError(fmt.Sprintf("Unsupported attestation report version: %d", req.Version))
+	}
+	signingContext, ok := s.signers.Context(strings.ToLower(strings.TrimSpace(req.SigningAlgo)))
+	if !ok {
+		return nil, badRequestError("Unsupported signing algorithm")
+	}
+	nonce, err := parseNonce(req.NonceHex)
+	if err != nil {
+		return nil, badRequestError(err.Error())
+	}
+	var certFingerprint []byte
+	if req.Version >= 2 {
+		certFingerprint = s.cfg.TLSCertSPKISHA256
+		if len(certFingerprint) == 0 {
+			certFingerprint, err = ResolveSPKIFingerprint(s.cfg.TLSCertPath)
+			if err != nil {
+				return nil, badRequestError("attestation version 2 requires a TLS certificate (set TLS_CERT_PATH)")
+			}
+		}
+	}
+	reportData, err := buildReportData(signingContext.AddressBytes, nonce, certFingerprint)
+	if err != nil {
+		return nil, badRequestError(err.Error())
+	}
+	quote, err := s.dstack.GetQuote(ctx, reportData)
+	if err != nil {
+		return nil, fmt.Errorf("get dstack quote: %w", err)
+	}
+	info, err := s.dstack.Info(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get dstack info: %w", err)
+	}
+	info = normalizeReportInfo(info)
+	requestNonceHex := hex.EncodeToString(nonce)
+	nvidiaPayload, err := s.nvidiaPayload(ctx, requestNonceHex)
+	if err != nil {
+		return nil, err
+	}
+	attestation := map[string]any{
+		"signing_address":    signingContext.Address,
+		"signing_algo":       signingContext.Algo,
+		"signing_public_key": signingContext.PublicKeyHex,
+		"request_nonce":      requestNonceHex,
+		"intel_quote":        quote.Quote,
+		"nvidia_payload":     nvidiaPayload,
+		"info":               info,
+		"quote":              quote.Quote,
+		"event_log":          quote.EventLog,
+		"vm_config":          quote.VMConfig,
+		"version":            req.Version,
+	}
+	if certFingerprint != nil {
+		attestation["tls_cert_fingerprint"] = hex.EncodeToString(certFingerprint)
+	}
+	response := cloneMap(attestation)
+	response["all_attestations"] = []map[string]any{attestation}
+	return response, nil
+}
+
+type HTTPError struct {
+	Status  int
+	Message string
+}
+
+func (e HTTPError) Error() string {
+	return e.Message
+}
+
+func badRequestError(message string) HTTPError {
+	return HTTPError{Status: 400, Message: message}
+}
+
+func parseNonce(raw string) ([]byte, error) {
+	if strings.TrimSpace(raw) == "" {
+		nonce := make([]byte, 32)
+		if _, err := rand.Read(nonce); err != nil {
+			return nil, err
+		}
+		return nonce, nil
+	}
+	nonce, err := hex.DecodeString(raw)
+	if err != nil {
+		return nil, fmt.Errorf("nonce must be hex-encoded")
+	}
+	if len(nonce) != 32 {
+		return nil, fmt.Errorf("nonce must be 32 bytes")
+	}
+	return nonce, nil
+}
+
+func buildReportData(signingAddressBytes []byte, nonce []byte, certFingerprint []byte) ([]byte, error) {
+	if len(signingAddressBytes) == 0 {
+		return nil, fmt.Errorf("signing address must be provided")
+	}
+	if len(signingAddressBytes) > 32 {
+		return nil, fmt.Errorf("signing address exceeds 32 bytes")
+	}
+	if len(nonce) != 32 {
+		return nil, fmt.Errorf("nonce must be 32 bytes")
+	}
+	reportData := make([]byte, 64)
+	if certFingerprint != nil {
+		digest := sha256.Sum256(append(append([]byte(nil), signingAddressBytes...), certFingerprint...))
+		copy(reportData[:32], digest[:])
+	} else {
+		copy(reportData[:32], signingAddressBytes)
+	}
+	copy(reportData[32:], nonce)
+	return reportData, nil
+}
+
+func (s *Service) nvidiaPayload(ctx context.Context, nonceHex string) (string, error) {
+	payload := s.cfg.NVIDIAPayload
+	if payload == "" && s.cfg.NVIDIAPayloadFile != "" {
+		body, err := os.ReadFile(s.cfg.NVIDIAPayloadFile)
+		if err != nil {
+			return "", fmt.Errorf("read nvidia payload file: %w", err)
+		}
+		payload = strings.TrimSpace(string(body))
+	}
+	if payload != "" {
+		return s.normalizeNVIDIAPayload(strings.ReplaceAll(payload, "${nonce}", nonceHex), nonceHex)
+	}
+	var nativeErr error
+	if s.nvidia != nil {
+		output, err := s.nvidia.Collect(ctx, nonceHex, s.cfg.GPUArch)
+		if err == nil {
+			return s.normalizeNVIDIAPayload(output, nonceHex)
+		}
+		nativeErr = err
+	}
+	if s.cfg.NVIDIAPayloadURL != "" {
+		output, err := s.fetchNVIDIAPayload(ctx, nonceHex)
+		if err != nil {
+			return "", err
+		}
+		return s.normalizeNVIDIAPayload(output, nonceHex)
+	}
+	if s.cfg.NVIDIACommand != "" {
+		output, err := s.runNVIDIACommand(ctx, nonceHex)
+		if err != nil {
+			return "", err
+		}
+		return s.normalizeNVIDIAPayload(output, nonceHex)
+	}
+	if s.cfg.RequireNVIDIAEvidence {
+		if nativeErr != nil {
+			return "", fmt.Errorf("nvidia evidence is required but native collector failed and no fallback source succeeded: %w", nativeErr)
+		}
+		return "", fmt.Errorf("nvidia evidence is required but no native collector, payload, URL, or command source is available")
+	}
+	body, _ := json.Marshal(emptyNVIDIAPayload(nonceHex, s.cfg.GPUArch))
+	return string(body), nil
+}
+
+func (s *Service) normalizeNVIDIAPayload(raw string, nonceHex string) (string, error) {
+	normalized, err := normalizeNVIDIAPayload(raw, nonceHex, s.cfg.GPUArch)
+	if err != nil {
+		return "", err
+	}
+	if s.cfg.RequireNVIDIAEvidence {
+		if err := requireNonEmptyNVIDIAEvidence(normalized); err != nil {
+			return "", err
+		}
+	}
+	return normalized, nil
+}
+
+func (s *Service) runNVIDIACommand(ctx context.Context, nonceHex string) (string, error) {
+	commandCtx, cancel := context.WithTimeout(ctx, s.cfg.NVIDIACommandTimeout)
+	defer cancel()
+	args := make([]string, 0, len(s.cfg.NVIDIACommandArgs))
+	for _, arg := range s.cfg.NVIDIACommandArgs {
+		args = append(args, strings.ReplaceAll(arg, "{nonce}", nonceHex))
+	}
+	command := exec.CommandContext(commandCtx, s.cfg.NVIDIACommand, args...)
+	output, err := command.Output()
+	if commandCtx.Err() != nil {
+		return "", fmt.Errorf("nvidia evidence command timed out: %w", commandCtx.Err())
+	}
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return "", fmt.Errorf("nvidia evidence command failed: %w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return "", fmt.Errorf("nvidia evidence command failed: %w", err)
+	}
+	return string(output), nil
+}
+
+func (s *Service) fetchNVIDIAPayload(ctx context.Context, nonceHex string) (string, error) {
+	payloadURL, err := url.Parse(s.cfg.NVIDIAPayloadURL)
+	if err != nil {
+		return "", fmt.Errorf("nvidia payload url is invalid: %w", err)
+	}
+	query := payloadURL.Query()
+	if query.Get("nonce") == "" {
+		query.Set("nonce", nonceHex)
+	}
+	payloadURL.RawQuery = query.Encode()
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, payloadURL.String(), nil)
+	if err != nil {
+		return "", fmt.Errorf("nvidia payload request: %w", err)
+	}
+	if s.cfg.NVIDIAPayloadAuth != "" {
+		request.Header.Set("Authorization", s.cfg.NVIDIAPayloadAuth)
+	}
+	client := &http.Client{Timeout: s.cfg.NVIDIACommandTimeout}
+	response, err := client.Do(request)
+	if err != nil {
+		return "", fmt.Errorf("fetch nvidia payload: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("fetch nvidia payload status %d", response.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, 32*1024*1024+1))
+	if err != nil {
+		return "", fmt.Errorf("read nvidia payload: %w", err)
+	}
+	if len(body) > 32*1024*1024 {
+		return "", fmt.Errorf("nvidia payload response exceeds 33554432 bytes")
+	}
+	payload, err := extractNVIDIAPayloadResponse(body)
+	if err != nil {
+		return "", err
+	}
+	return payload, nil
+}
+
+func normalizeNVIDIAPayload(raw string, nonceHex string, arch string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", fmt.Errorf("nvidia payload is empty")
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return "", fmt.Errorf("nvidia payload must be JSON: %w", err)
+	}
+	if _, ok := payload["evidence_list"]; ok {
+		if _, ok := payload["nonce"]; !ok {
+			payload["nonce"] = nonceHex
+		}
+		if _, ok := payload["arch"]; !ok {
+			payload["arch"] = arch
+		}
+		normalized, err := json.Marshal(payload)
+		return string(normalized), err
+	}
+	if evidences, ok := payload["evidences"]; ok {
+		if payloadArch, ok := payload["arch"].(string); ok && payloadArch != "" {
+			arch = payloadArch
+		}
+		normalized, err := json.Marshal(map[string]any{
+			"nonce":         nonceHex,
+			"evidence_list": evidences,
+			"arch":          arch,
+		})
+		return string(normalized), err
+	}
+	if s, ok := payload["evidence"].(string); ok && s != "" {
+		normalized, err := json.Marshal(map[string]any{
+			"nonce":         nonceHex,
+			"evidence_list": []any{payload},
+			"arch":          arch,
+		})
+		return string(normalized), err
+	}
+	return "", fmt.Errorf("nvidia payload JSON must contain evidence_list, evidences, or evidence")
+}
+
+func extractNVIDIAPayloadResponse(body []byte) (string, error) {
+	raw := strings.TrimSpace(string(body))
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return "", fmt.Errorf("nvidia payload response must be JSON: %w", err)
+	}
+	if nvidiaPayload, ok := payload["nvidia_payload"].(string); ok && strings.TrimSpace(nvidiaPayload) != "" {
+		return nvidiaPayload, nil
+	}
+	if _, ok := payload["evidence_list"]; ok {
+		return raw, nil
+	}
+	if _, ok := payload["evidences"]; ok {
+		return raw, nil
+	}
+	if evidence, ok := payload["evidence"].(string); ok && evidence != "" {
+		return raw, nil
+	}
+	return "", fmt.Errorf("nvidia payload response JSON must contain nvidia_payload, evidence_list, evidences, or evidence")
+}
+
+func requireNonEmptyNVIDIAEvidence(normalized string) error {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(normalized), &payload); err != nil {
+		return fmt.Errorf("nvidia payload must be JSON: %w", err)
+	}
+	rawList, ok := payload["evidence_list"]
+	if !ok {
+		return fmt.Errorf("nvidia payload evidence_list is required when NVIDIA evidence is required")
+	}
+	var evidenceList []json.RawMessage
+	if err := json.Unmarshal(rawList, &evidenceList); err != nil {
+		return fmt.Errorf("nvidia payload evidence_list must be an array: %w", err)
+	}
+	if len(evidenceList) == 0 {
+		return fmt.Errorf("nvidia payload evidence_list must not be empty when NVIDIA evidence is required")
+	}
+	for _, evidence := range evidenceList {
+		trimmed := bytes.TrimSpace(evidence)
+		if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+			return fmt.Errorf("nvidia payload evidence_list must not contain empty evidence")
+		}
+	}
+	return nil
+}
+
+func cloneMap(input map[string]any) map[string]any {
+	output := make(map[string]any, len(input))
+	for key, value := range input {
+		output[key] = value
+	}
+	return output
+}
+
+func normalizeReportInfo(info map[string]any) map[string]any {
+	normalized := cloneMap(info)
+	delete(normalized, "cloud_product")
+	delete(normalized, "cloud_vendor")
+	return normalized
+}

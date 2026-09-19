@@ -1,0 +1,4 @@
+/phala-tail
+/dist/
+/artifacts/
+.env

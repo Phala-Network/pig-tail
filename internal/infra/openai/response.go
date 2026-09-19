@@ -1,0 +1,77 @@
+package openai
+
+import (
+	"encoding/json"
+	"net/http"
+)
+
+type Response struct {
+	Error Info `json:"error"`
+}
+
+type Info struct {
+	Message string  `json:"message"`
+	Type    string  `json:"type"`
+	Param   *string `json:"param"`
+	Code    int     `json:"code"`
+}
+
+func WriteTooManyRequests(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusTooManyRequests)
+	_ = json.NewEncoder(w).Encode(Response{
+		Error: Info{
+			Message: "Too many requests",
+			Type:    "TooManyRequestsError",
+			Param:   nil,
+			Code:    http.StatusTooManyRequests,
+		},
+	})
+}
+
+func WriteUnauthorized(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+	_ = json.NewEncoder(w).Encode(Response{
+		Error: Info{
+			Message: "Invalid or missing Authorization header",
+			Type:    "AuthenticationError",
+			Param:   nil,
+			Code:    http.StatusUnauthorized,
+		},
+	})
+}
+
+func WriteInvalidJSON(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(Response{
+		Error: Info{
+			Message: "Invalid JSON request body",
+			Type:    "invalid_request_error",
+			Param:   nil,
+			Code:    http.StatusBadRequest,
+		},
+	})
+}
+
+func WriteNotFound(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
+	_ = json.NewEncoder(w).Encode(Response{
+		Error: Info{
+			Message: "The requested resource was not found",
+			Type:    "invalid_request_error",
+			Param:   nil,
+			Code:    http.StatusNotFound,
+		},
+	})
+}
+
+func WriteUnavailable(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	_ = json.NewEncoder(w).Encode(Response{Error: Info{
+		Message: "Upstream is unavailable", Type: "server_error", Code: http.StatusServiceUnavailable,
+	}})
+}
