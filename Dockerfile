@@ -20,7 +20,7 @@ FROM gcr.io/distroless/base-debian12@sha256:348dac1808083ccc3366399d6db835875b4e
 ARG VERSION=v0.1.0
 ARG SOURCE_REVISION
 
-LABEL org.opencontainers.image.title="Phala Inference TAIL" \
+LABEL org.opencontainers.image.title="TAIL — TEE-Attested Inference Layer" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${SOURCE_REVISION}" \
       org.opencontainers.image.licenses="GPL-3.0-only"

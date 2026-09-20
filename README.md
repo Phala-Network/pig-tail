@@ -1,6 +1,6 @@
-# Phala Inference TAIL
+# TAIL — TEE-Attested Inference Layer
 
-TAIL is the thin trusted inference entrypoint for the native Phala Inference
+TAIL (TEE-Attested Inference Layer) is the thin trusted inference entrypoint for the native Phala Inference
 Governor architecture. It authenticates a deliberately small OpenAI-compatible
 surface with the deployment's unified TOKEN, forwards opaque request bodies and
 streams to one fixed SGLang origin, and serves the attestation report endpoint.
