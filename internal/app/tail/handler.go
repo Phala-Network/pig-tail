@@ -65,6 +65,12 @@ func New(cfg Config, reporter Reporter) (*Handler, error) {
 		Transport: transport, FlushInterval: -1,
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(target)
+			if pr.In.URL.Path == "/admin/v1/predictive-profile" {
+				// ReverseProxy removes unparsable query parameters before Rewrite.
+				// ABI4 requires this authenticated read route to reach the Governor
+				// byte-for-byte so it can own expected_epoch validation.
+				pr.Out.URL.RawQuery = pr.In.URL.RawQuery
+			}
 			pr.Out.Host = target.Host
 			pr.Out.Header.Set("Authorization", "Bearer "+cfg.Token)
 		},
@@ -122,7 +128,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	management := p == "/pig/metrics" || p == "/v1/metrics" || p == "/v1/upstream-status" ||
-		p == "/admin/v1/predictive-policy" || p == "/v1/attestation/report"
+		p == "/admin/v1/predictive-policy" || p == "/admin/v1/predictive-profile" ||
+		p == "/v1/attestation/report"
 	public := (generation(p) && r.Method == http.MethodPost) || (p == "/v1/models" && r.Method == http.MethodGet)
 	if !management && !public {
 		openai.WriteNotFound(w)
@@ -147,6 +154,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			// The scheduler owns authentication, CAS validation, and the exact
 			// response envelope. TAIL only protects and transports this route.
+			h.forward(w, r)
+		case "/admin/v1/predictive-profile":
+			if r.Method != http.MethodGet {
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			// The scheduler owns epoch validation and the exact response envelope.
+			// TAIL only protects and transports this ABI4 read route.
 			h.forward(w, r)
 		case "/v1/upstream-status":
 			if r.Method != http.MethodGet {
