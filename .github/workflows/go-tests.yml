@@ -1,0 +1,26 @@
+name: Go tests
+
+on:
+  push:
+    branches: [main]
+    paths: ['**/*.go', 'go.mod', 'go.sum', '.github/workflows/go-tests.yml']
+  pull_request:
+    paths: ['**/*.go', 'go.mod', 'go.sum', '.github/workflows/go-tests.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test -race ./...
+      - run: go vet ./...
