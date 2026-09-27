@@ -2,7 +2,7 @@ FROM golang:1.24-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae538
 
 WORKDIR /src
 
-ARG VERSION=v0.1.0
+ARG VERSION=v0.1.2
 
 COPY go.mod go.sum ./
 COPY cmd ./cmd
@@ -17,13 +17,14 @@ RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
 
 FROM gcr.io/distroless/base-debian12@sha256:348dac1808083ccc3366399d6db835875b4eaf7c9b694783f5a3f353c4b58a28
 
-ARG VERSION=v0.1.0
+ARG VERSION=v0.1.2
 ARG SOURCE_REVISION
 
 LABEL org.opencontainers.image.title="TAIL — TEE-Attested Inference Layer" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${SOURCE_REVISION}" \
-      org.opencontainers.image.licenses="GPL-3.0-only"
+      org.opencontainers.image.licenses="GPL-3.0-only" \
+      org.opencontainers.image.source="https://github.com/Phala-Network/pig-tail"
 
 # The executable dynamically loads libnvidia-ml.so.1 for confidential-compute
 # evidence. The NVIDIA container runtime must inject the driver library and

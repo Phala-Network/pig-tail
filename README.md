@@ -61,19 +61,20 @@ public endpoint, and a certificate without its matching key is rejected.
 
 ## Build and source provenance
 
-This v0.1.0 source is a minimal GPL-3.0-only extraction from the former Phala
+This source is a minimal GPL-3.0-only extraction from the former Phala
 Inference Guard development worktree. The extraction contains only the
 phala-tail command, TAIL handler, required HTTP/OpenAI helpers, and the
 attestation implementation with its tests. It does not contain the legacy
 Guard server, admission controller, native-QoS client, classifier, predictive
-configuration, or telemetry observer. The v0.1.0 release manifest must freeze
+configuration, or telemetry observer. The release receipt must freeze
 the exact source/revision inputs before publication.
 
 The Dockerfile pins the Go build and distroless runtime bases recorded by the
 previous verified PIG release inputs. It builds a Linux/amd64 CGO binary without
 runtime source mounts or dependency installation. A later authorized builder
 release must still run the source tests, race tests, dependency-closure check,
-image-level NVML/dstack qualification, reproducibility builds, and registry
-provenance/readback before any CVM deployment.
+image-level NVML/dstack qualification and registry readback before any CVM
+deployment. See [deployment contract](docs/production.md) for the configuration
+entrypoint, Governor profile boundary, qualification and rollback gates.
 
 See LICENSE for the GNU GPL version 3 terms.
