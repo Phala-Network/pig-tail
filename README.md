@@ -16,6 +16,13 @@ TAIL requires TOKEN and UPSTREAM. UPSTREAM must be one HTTP(S) origin without
 userinfo, path, query, or fragment. The proxy always overwrites the upstream
 Authorization header with the same unified Bearer TOKEN.
 
+The authenticated Governor management surface is fixed to
+`GET|PATCH /admin/v1/predictive-policy` and
+`GET /admin/v1/predictive-profile?expected_epoch=...`. TAIL preserves the
+profile query and the upstream response status and body without interpreting
+the epoch. Other methods on the profile route return 405, and all other admin
+paths remain outside the allowlist and return 404.
+
 DSTACK_ENDPOINT should be set explicitly to /var/run/dstack.sock in production,
 with that Unix socket mounted into the container. TAIL obtains GetQuote and Info
 through this local dstack RPC endpoint. Do not use DSTACK_SIMULATOR_ENDPOINT for

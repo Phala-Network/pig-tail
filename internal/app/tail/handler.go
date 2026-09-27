@@ -34,14 +34,15 @@ type Config struct {
 }
 
 type Handler struct {
-	cfg         Config
-	report      Reporter
-	proxy       *httputil.ReverseProxy
-	transport   *http.Transport
-	started     time.Time
-	inflight    atomic.Int64
-	forwarded   atomic.Uint64
-	unavailable atomic.Uint64
+	cfg           Config
+	authorization []byte
+	report        Reporter
+	proxy         *httputil.ReverseProxy
+	transport     *http.Transport
+	started       time.Time
+	inflight      atomic.Int64
+	forwarded     atomic.Uint64
+	unavailable   atomic.Uint64
 }
 
 func New(cfg Config, reporter Reporter) (*Handler, error) {
@@ -60,11 +61,23 @@ func New(cfg Config, reporter Reporter) (*Handler, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil // A trusted fixed backend must not route through an ambient proxy.
 	transport.MaxIdleConnsPerHost = 512
-	h := &Handler{cfg: cfg, report: reporter, transport: transport, started: time.Now()}
+	h := &Handler{
+		cfg:           cfg,
+		authorization: []byte("Bearer " + cfg.Token),
+		report:        reporter,
+		transport:     transport,
+		started:       time.Now(),
+	}
 	h.proxy = &httputil.ReverseProxy{
 		Transport: transport, FlushInterval: -1,
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(target)
+			if pr.In.URL.Path == "/admin/v1/predictive-profile" {
+				// ReverseProxy removes unparsable query parameters before Rewrite.
+				// ABI4 requires this authenticated read route to reach the Governor
+				// byte-for-byte so it can own expected_epoch validation.
+				pr.Out.URL.RawQuery = pr.In.URL.RawQuery
+			}
 			pr.Out.Host = target.Host
 			pr.Out.Header.Set("Authorization", "Bearer "+cfg.Token)
 		},
@@ -96,9 +109,9 @@ func canonical(r *http.Request) (string, bool) {
 	return p, true
 }
 
-func authorized(r *http.Request, token string) bool {
+func authorized(r *http.Request, expected []byte) bool {
 	values := r.Header.Values("Authorization")
-	return len(values) == 1 && subtle.ConstantTimeCompare([]byte(values[0]), []byte("Bearer "+token)) == 1
+	return len(values) == 1 && subtle.ConstantTimeCompare([]byte(values[0]), expected) == 1
 }
 
 func generation(p string) bool {
@@ -122,13 +135,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	management := p == "/pig/metrics" || p == "/v1/metrics" || p == "/v1/upstream-status" ||
-		p == "/admin/v1/predictive-policy" || p == "/v1/attestation/report"
+		p == "/admin/v1/predictive-policy" || p == "/admin/v1/predictive-profile" ||
+		p == "/v1/attestation/report"
 	public := (generation(p) && r.Method == http.MethodPost) || (p == "/v1/models" && r.Method == http.MethodGet)
 	if !management && !public {
 		openai.WriteNotFound(w)
 		return
 	}
-	if !authorized(r, h.cfg.Token) {
+	if !authorized(r, h.authorization) {
 		if p == "/pig/metrics" || p == "/v1/metrics" || p == "/v1/upstream-status" {
 			http.Error(w, "unauthorized", 401)
 		} else {
@@ -147,6 +161,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			// The scheduler owns authentication, CAS validation, and the exact
 			// response envelope. TAIL only protects and transports this route.
+			h.forward(w, r)
+		case "/admin/v1/predictive-profile":
+			if r.Method != http.MethodGet {
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			// The scheduler owns epoch validation and the exact response envelope.
+			// TAIL only protects and transports this ABI4 read route.
 			h.forward(w, r)
 		case "/v1/upstream-status":
 			if r.Method != http.MethodGet {

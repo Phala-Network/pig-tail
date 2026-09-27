@@ -53,14 +53,16 @@ func call(h http.Handler, method, path, body string, auth bool) *httptest.Respon
 func TestCanonicalWhitelistAndAuthenticationNeverReachBackend(t *testing.T) {
 	var count atomic.Int64
 	h := setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { count.Add(1) }), nil, time.Second)
-	for _, p := range []string{"/generate", "/tokenize", "/native_qos", "/metrics", "/v1/models/", "/v1//models", "/v1/../v1/models", "/v1/%6dodels", "/v1/attestation/report/"} {
+	for _, p := range []string{"/generate", "/tokenize", "/native_qos", "/metrics", "/v1/models/", "/v1//models", "/v1/../v1/models", "/v1/%6dodels", "/v1/attestation/report/", "/admin/v1/predictive-profile/", "/admin/v1/predictive-profile-extra", "/admin/v1/unknown"} {
 		for _, m := range []string{http.MethodGet, http.MethodPost, http.MethodPatch} {
-			if w := call(h, m, p, "{}", true); w.Code != http.StatusNotFound {
-				t.Fatalf("%s %s: %d", m, p, w.Code)
+			for _, auth := range []bool{false, true} {
+				if w := call(h, m, p, "{}", auth); w.Code != http.StatusNotFound {
+					t.Fatalf("%s %s auth=%v: %d", m, p, auth, w.Code)
+				}
 			}
 		}
 	}
-	for _, p := range []string{"/v1/models", "/v1/metrics", "/pig/metrics", "/v1/upstream-status", "/admin/v1/predictive-policy", "/v1/attestation/report"} {
+	for _, p := range []string{"/v1/models", "/v1/metrics", "/pig/metrics", "/v1/upstream-status", "/admin/v1/predictive-policy", "/admin/v1/predictive-profile?expected_epoch=1234567890abcdef1234567890abcdef", "/v1/attestation/report"} {
 		if w := call(h, http.MethodGet, p, "", false); w.Code != http.StatusUnauthorized {
 			t.Fatalf("unauthorized %s: %d", p, w.Code)
 		}
@@ -146,6 +148,54 @@ func TestAdminPreservesPathBodyStatusAndDoesNotRetry(t *testing.T) {
 	}
 	if calls.Load() != 2 {
 		t.Fatal("admin request retried", calls.Load())
+	}
+}
+
+func TestPredictiveProfileGETPreservesQueryStatusAndBody(t *testing.T) {
+	var calls atomic.Int64
+	const rawQuery = "expected_epoch=1234567890abcdef1234567890abcdef;opaque=1&trace=a%2Fb&trace=second"
+	const responseBody = `{"error":"profile_epoch_mismatch"}`
+	h := setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %q", r.Method)
+		}
+		if r.URL.Path != "/admin/v1/predictive-profile" {
+			t.Errorf("path = %q", r.URL.Path)
+		}
+		if r.URL.RawQuery != rawQuery {
+			t.Errorf("query = %q", r.URL.RawQuery)
+		}
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Error("service authentication missing")
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(http.StatusConflict)
+		_, _ = io.WriteString(w, responseBody)
+	}), nil, time.Second)
+
+	if unauthorized := call(h, http.MethodPost, "/admin/v1/predictive-profile?"+rawQuery, "{}", false); unauthorized.Code != http.StatusUnauthorized {
+		t.Fatal("unauthorized profile method did not authenticate first", unauthorized.Code)
+	}
+	if calls.Load() != 0 {
+		t.Fatal("unauthorized profile request reached backend", calls.Load())
+	}
+
+	w := call(h, http.MethodGet, "/admin/v1/predictive-profile?"+rawQuery, "", true)
+	if w.Code != http.StatusConflict || w.Header().Get("Cache-Control") != "no-store" || w.Body.String() != responseBody {
+		t.Fatal(w.Code, w.Header(), w.Body.String())
+	}
+	if calls.Load() != 1 {
+		t.Fatal("profile GET was not forwarded exactly once", calls.Load())
+	}
+
+	for _, method := range []string{http.MethodPost, http.MethodPatch, http.MethodPut, http.MethodDelete, http.MethodHead, http.MethodOptions} {
+		if blocked := call(h, method, "/admin/v1/predictive-profile?"+rawQuery, "{}", true); blocked.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("%s profile: %d", method, blocked.Code)
+		}
+	}
+	if calls.Load() != 1 {
+		t.Fatal("non-GET profile request reached backend", calls.Load())
 	}
 }
 
