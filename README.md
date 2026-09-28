@@ -1,80 +1,67 @@
 # TAIL — TEE-Attested Inference Layer
 
-TAIL (TEE-Attested Inference Layer) is the thin trusted inference entrypoint for the native Phala Inference
-Governor architecture. It authenticates a deliberately small OpenAI-compatible
-surface with the deployment's unified TOKEN, forwards opaque request bodies and
-streams to one fixed SGLang origin, and serves the attestation report endpoint.
+TAIL is a small authenticated proxy and attestation endpoint for Phala inference
+services. It forwards opaque OpenAI-compatible requests and streams to one fixed
+backend origin with the deployment's unified bearer token.
 
-TAIL does not classify request bodies, make admission or TPS decisions, own a
-queue, read scheduler state, allocate KV cache, or construct the legacy Phala
-Inference Guard controller. The native SGLang scheduler remains the sole QoS
-authority.
+TAIL does not make admission/TPS decisions or own queues and KV cache. Those
+remain with the backend and optional [Governor](https://github.com/Phala-Network/phala-inference-governor).
+It is separate from the [Guard proxy](https://github.com/Phala-Network/phala-inference-guard).
 
-## Runtime contract
+## Local quick start
 
-TAIL requires TOKEN and UPSTREAM. UPSTREAM must be one HTTP(S) origin without
-userinfo, path, query, or fragment. The proxy always overwrites the upstream
-Authorization header with the same unified Bearer TOKEN.
+Use Go 1.24 or later and a reachable backend. In Bash:
 
-The authenticated Governor management surface is fixed to
-`GET|PATCH /admin/v1/predictive-policy` and
-`GET /admin/v1/predictive-profile?expected_epoch=...`. TAIL preserves the
-profile query and the upstream response status and body without interpreting
-the epoch. Other methods on the profile route return 405, and all other admin
-paths remain outside the allowlist and return 404.
+```bash
+go build -o phala-tail ./cmd/phala-tail
+export TOKEN='replace-with-a-strong-token'
+export UPSTREAM='http://127.0.0.1:30000'
+./phala-tail
+```
 
-DSTACK_ENDPOINT should be set explicitly to /var/run/dstack.sock in production,
-with that Unix socket mounted into the container. TAIL obtains GetQuote and Info
-through this local dstack RPC endpoint. Do not use DSTACK_SIMULATOR_ENDPOINT for
-a production deployment.
+In another terminal with the same `TOKEN`:
 
-The native NVIDIA evidence collector is built only on Linux with CGO enabled.
-At runtime it dynamically opens libnvidia-ml.so.1 and requires the NVIDIA
-container runtime to inject a confidential-compute-capable driver, GPU device
-nodes, and the utility capability. It does not require nvidia-smi or a shell
-collector. A missing or incompatible NVML driver makes a required NVIDIA
-evidence report fail.
+```bash
+./phala-tail healthcheck
+curl --fail -H "Authorization: Bearer $TOKEN" http://127.0.0.1:31081/v1/models
+```
 
-LISTEN defaults to 127.0.0.1:31081 for local use. A separate Compose service
-that is reached by another container must set LISTEN to 0.0.0.0:31081 and keep
-the port on an internal network rather than publishing it directly.
+The backend must use the same token. `UPSTREAM` is an HTTP(S) origin without a
+path, query, fragment or embedded credentials. The healthcheck proves local
+liveness; model discovery checks the backend path. This example does not qualify
+attestation: reports require real dstack and supported NVIDIA infrastructure.
 
-The packaged `phala-tail healthcheck` command checks the local listener's
-`/healthz` endpoint with a five-second timeout. It does not initialize dstack or
-NVIDIA evidence collection and does not require TOKEN. Wildcard LISTEN addresses
-map to loopback for the probe. Redirects and non-2xx statuses fail. With TLS
-enabled, the probe verifies certificate trust, SAN and the configured listener
-certificate; it does not disable TLS verification. Use it as an exec-form
-container healthcheck. Backend readiness remains a separate dependency and
-inference acceptance check.
+## Production and attestation
 
-## TLS and attestation report versions
+Production uses Linux/amd64 with CGO, the pinned [Dockerfile](Dockerfile), the
+NVIDIA container runtime and a release's immutable image digest. Set
+`LISTEN=0.0.0.0:31081` on a private network when other containers connect.
 
-Without both TLS_CERT_PATH and TLS_KEY_PATH, TAIL listens as local HTTP and
-serves the existing v1 report behavior. When both paths are present and form a
-matching key pair, TAIL terminates TLS itself and binds the v2 report to the
-SPKI of the exact certificate snapshot loaded by that listener.
+Set and mount `DSTACK_ENDPOINT=/var/run/dstack.sock` for attestation. GPU evidence
+requires a compatible confidential-compute NVML driver. Matching `TLS_CERT_PATH`
+and `TLS_KEY_PATH` enable TAIL TLS and bind the v2 report to that listener's
+certificate. External TLS termination needs independent binding verification.
 
-An external TLS terminator has a separate certificate-binding proof obligation.
-Mounting only its certificate into TAIL does not bind TAIL's report to the
-public endpoint, and a certificate without its matching key is rejected.
+See [runtime and TLS details](docs/runtime.md) and the
+[deployment contract](docs/production.md) for configuration and acceptance.
 
-## Build and source provenance
+## Management forwarding
 
-This source is a minimal GPL-3.0-only extraction from the former Phala
-Inference Guard development worktree. The extraction contains only the
-phala-tail command, TAIL handler, required HTTP/OpenAI helpers, and the
-attestation implementation with its tests. It does not contain the legacy
-Guard server, admission controller, native-QoS client, classifier, predictive
-configuration, or telemetry observer. The release receipt must freeze
-the exact source/revision inputs before publication.
+TAIL forwards authenticated `GET/PATCH /admin/v1/predictive-policy` and
+`GET /admin/v1/predictive-profile?expected_epoch=...` without interpreting policy.
+Unlisted admin paths remain outside its allowlist. Profile requirements belong
+to the selected Governor/backend version.
 
-The Dockerfile pins the Go build and distroless runtime bases recorded by the
-previous verified PIG release inputs. It builds a Linux/amd64 CGO binary without
-runtime source mounts or dependency installation. A later authorized builder
-release must still run the source tests, race tests, dependency-closure check,
-image-level NVML/dstack qualification and registry readback before any CVM
-deployment. See [deployment contract](docs/production.md) for the configuration
-entrypoint, Governor profile boundary, qualification and rollback gates.
+## Development and releases
 
-See LICENSE for the GNU GPL version 3 terms.
+- [Contributing and tests](CONTRIBUTING.md)
+- [Release policy](docs/RELEASING.md)
+- [Source tags](https://github.com/Phala-Network/pig-tail/tags)
+
+`main` integrates maintained code; immutable tags identify releases. Source tests,
+image qualification and production acceptance are separate checks.
+
+## License
+
+[GNU General Public License v3.0](LICENSE). TAIL was extracted from former Phala
+Inference Guard development source and maintains its independent scope.

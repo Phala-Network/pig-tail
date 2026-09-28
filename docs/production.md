@@ -35,28 +35,26 @@ the listener does not hot-reload certificates.
 
 ## Governor Compatibility
 
-The qualified backend pair is SGLang P1 engine `181598031c` with Governor
+A historical qualified backend pair is SGLang P1 engine `181598031c` with Governor
 `d60a93a` / 0.2.5 / ABI4. TAIL forwards `/admin/v1/predictive-policy` GET/PATCH
 and `/admin/v1/predictive-profile?expected_epoch=...` GET without interpreting
 or caching the response. Backend errors (including 429 and CAS 409), bodies,
 query strings, SSE events and cancellations must reach the caller unchanged.
 Other profile methods return 405; unlisted admin paths return 404.
 
-Backend configuration must independently set `PIG_GOVERNOR_ENABLE=1`, reference
-50, the actual image library path `/opt/phala/governor/libpig_governor_core.so`,
-and a read-only `PIG_TPS_PROFILE_PATH` plus exact `PIG_TPS_PROFILE_SHA256`.
-Use a fresh, fully covered profile from the matching model artifact, hardware,
-engine, Governor and resolved runtime configuration. A profile sampled with a
-different scheduler, context, KV dtype or topology is not compatible. Detected KV
-capacity may only increase from the sampled minimum. Never edit a profile identity
-or reuse GPU805's profile across production nodes without this validation.
+Backend configuration must independently select compatible Governor source,
+native library and topology. Older profile-bound versions require a matching
+read-only profile and digest; newer online-learning versions can operate without
+a precomputed profile. TAIL neither loads nor validates those profiles. Validate
+any supplied profile against the selected model, hardware and resolved runtime.
+See the [Governor integration contract](https://github.com/Phala-Network/phala-inference-governor/blob/main/docs/INTEGRATION.md).
 
 ## Deployment and Rollback Gates
 
 Image qualification permits preparing a controlled deployment; it does not accept
 an untested production target. Before removing Guard, verify the candidate Compose,
 private routing, sealed TOKEN agreement, exact running image/config IDs, backend
-profile hash/identity/expiry/coverage, positive-reference admission, protocol,
+identity and profile hash/expiry/coverage when selected, positive-reference admission, protocol,
 cancellation/drain, fresh CPU/GPU attestation and public TLS binding. Preserve each
 original Compose hash and route membership. Do not widen management exposure.
 

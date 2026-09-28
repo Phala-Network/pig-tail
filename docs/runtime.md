@@ -1,0 +1,50 @@
+# Runtime, TLS and attestation
+
+## Runtime contract
+
+TAIL requires TOKEN and UPSTREAM. UPSTREAM must be one HTTP(S) origin without
+userinfo, path, query, or fragment. The proxy always overwrites the upstream
+Authorization header with the same unified Bearer TOKEN.
+
+The authenticated Governor management surface is fixed to
+`GET|PATCH /admin/v1/predictive-policy` and
+`GET /admin/v1/predictive-profile?expected_epoch=...`. TAIL preserves the
+profile query and the upstream response status and body without interpreting
+the epoch. Other methods on the profile route return 405, and all other admin
+paths remain outside the allowlist and return 404.
+
+DSTACK_ENDPOINT should be set explicitly to /var/run/dstack.sock in production,
+with that Unix socket mounted into the container. TAIL obtains GetQuote and Info
+through this local dstack RPC endpoint. Do not use DSTACK_SIMULATOR_ENDPOINT for
+a production deployment.
+
+The native NVIDIA evidence collector is built only on Linux with CGO enabled.
+At runtime it dynamically opens libnvidia-ml.so.1 and requires the NVIDIA
+container runtime to inject a confidential-compute-capable driver, GPU device
+nodes, and the utility capability. It does not require nvidia-smi or a shell
+collector. A missing or incompatible NVML driver makes a required NVIDIA
+evidence report fail.
+
+LISTEN defaults to 127.0.0.1:31081 for local use. A separate Compose service
+that is reached by another container must set LISTEN to 0.0.0.0:31081 and keep
+the port on an internal network rather than publishing it directly.
+
+The packaged `phala-tail healthcheck` command checks the local listener's
+`/healthz` endpoint with a five-second timeout. It does not initialize dstack or
+NVIDIA evidence collection and does not require TOKEN. Wildcard LISTEN addresses
+map to loopback for the probe. Redirects and non-2xx statuses fail. With TLS
+enabled, the probe verifies certificate trust, SAN and the configured listener
+certificate; it does not disable TLS verification. Use it as an exec-form
+container healthcheck. Backend readiness remains a separate dependency and
+inference acceptance check.
+
+## TLS and attestation report versions
+
+Without both TLS_CERT_PATH and TLS_KEY_PATH, TAIL listens as local HTTP and
+serves the existing v1 report behavior. When both paths are present and form a
+matching key pair, TAIL terminates TLS itself and binds the v2 report to the
+SPKI of the exact certificate snapshot loaded by that listener.
+
+An external TLS terminator has a separate certificate-binding proof obligation.
+Mounting only its certificate into TAIL does not bind TAIL's report to the
+public endpoint, and a certificate without its matching key is rejected.
