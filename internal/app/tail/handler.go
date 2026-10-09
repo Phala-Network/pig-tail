@@ -137,7 +137,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	management := p == "/pig/metrics" || p == "/v1/metrics" || p == "/v1/upstream-status" ||
 		p == "/admin/v1/predictive-policy" || p == "/admin/v1/predictive-profile" ||
 		p == "/v1/attestation/report"
-	public := (generation(p) && r.Method == http.MethodPost) || (p == "/v1/models" && r.Method == http.MethodGet)
+	// System One is a classification endpoint, not a generation request.
+	public := ((generation(p) || p == "/v1/systemone") && r.Method == http.MethodPost) || (p == "/v1/models" && r.Method == http.MethodGet)
 	if !management && !public {
 		openai.WriteNotFound(w)
 		return

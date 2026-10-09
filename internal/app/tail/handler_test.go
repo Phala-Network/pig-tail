@@ -114,6 +114,50 @@ func TestInferenceForwardsOpaqueBodyWithoutNativeEpoch(t *testing.T) {
 	}
 }
 
+func TestSystemOneAuthenticationAndOpaqueForwarding(t *testing.T) {
+	const payload = `{"messages":[{"role":"user","content":"classify this"}],"opaque":true}`
+	const response = `{"classification":"safe","score":0.98}`
+	var count atomic.Int64
+	h := setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count.Add(1)
+		body, _ := io.ReadAll(r.Body)
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/systemone" || string(body) != payload || r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Error("classification request was changed")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = io.WriteString(w, response)
+	}), nil, time.Second)
+	for _, credential := range []string{"", "Bearer wrong"} {
+		r := httptest.NewRequest(http.MethodPost, "/v1/systemone", strings.NewReader(payload))
+		if credential != "" {
+			r.Header.Set("Authorization", credential)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("invalid credential: %d", w.Code)
+		}
+	}
+	for _, p := range []string{"/v1/systemone/", "/v1/systemone-extra", "/v1//systemone", "/v1/%73ystemone"} {
+		if w := call(h, http.MethodPost, p, payload, true); w.Code != http.StatusNotFound {
+			t.Fatalf("noncanonical route %s: %d", p, w.Code)
+		}
+	}
+	for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+		if w := call(h, method, "/v1/systemone", payload, true); w.Code != http.StatusNotFound {
+			t.Fatalf("method %s: %d", method, w.Code)
+		}
+	}
+	if count.Load() != 0 {
+		t.Fatal("rejected request reached backend")
+	}
+	w := call(h, http.MethodPost, "/v1/systemone", payload, true)
+	if w.Code != http.StatusAccepted || w.Body.String() != response || count.Load() != 1 {
+		t.Fatalf("opaque response not preserved: %d %s calls=%d", w.Code, w.Body.String(), count.Load())
+	}
+}
+
 func TestAdminPreservesPathBodyStatusAndDoesNotRetry(t *testing.T) {
 	var calls atomic.Int64
 	payload := `{"expected_epoch":"1234567890abcdef1234567890abcdef","expected_revision":1,"tps_reference":50}`
