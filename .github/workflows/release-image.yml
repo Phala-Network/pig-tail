@@ -1,0 +1,63 @@
+name: Release image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing immutable tag with a published GitHub Release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: tail-image-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      IMAGE_REPOSITORY: ghcr.io/phala-network/pig-tail
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - name: Verify published source release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > /tmp/tail-release.json
+          jq -e '.draft == false and .published_at != null' /tmp/tail-release.json
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$(git rev-parse HEAD)"
+          echo "SOURCE_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Source checks
+        run: |
+          go test -race ./...
+          go vet ./...
+      - name: Build once and test final image
+        run: |
+          docker build --pull --platform linux/amd64 --build-arg "VERSION=$RELEASE_TAG" --build-arg "SOURCE_REVISION=$SOURCE_REVISION" -t "$IMAGE_REPOSITORY:$RELEASE_TAG" .
+          python3 scripts/image-smoke.py "$IMAGE_REPOSITORY:$RELEASE_TAG"
+          docker image inspect "$IMAGE_REPOSITORY:$RELEASE_TAG" --format '{{.Id}} {{json .Config.Labels}}'
+      - name: Publish tested image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          export DOCKER_CONFIG="$(mktemp -d)"
+          trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          if docker manifest inspect "$IMAGE_REPOSITORY:$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'Refusing to overwrite an existing image tag'; exit 1
+          fi
+          docker push "$IMAGE_REPOSITORY:$RELEASE_TAG"
+          docker image inspect "$IMAGE_REPOSITORY:$RELEASE_TAG" --format '{{json .RepoDigests}}'

@@ -40,11 +40,20 @@ inference acceptance check.
 
 ## TLS and attestation report versions
 
-Without both TLS_CERT_PATH and TLS_KEY_PATH, TAIL listens as local HTTP and
-serves the existing v1 report behavior. When both paths are present and form a
-matching key pair, TAIL terminates TLS itself and binds the v2 report to the
-SPKI of the exact certificate snapshot loaded by that listener.
+With neither TLS path set, TAIL listens as local HTTP and supports v1 reports.
+Setting only `TLS_CERT_PATH` keeps this HTTP listener and supplies the external
+ingress certificate for v2 attestation. Mount the public certificate read-only;
+TAIL does not need the ingress private key. The report reads the certificate
+on each request and rejects v2 when it is missing or invalid, so ingress can
+start and issue a certificate after TAIL's liveness check passes.
 
-An external TLS terminator has a separate certificate-binding proof obligation.
-Mounting only its certificate into TAIL does not bind TAIL's report to the
-public endpoint, and a certificate without its matching key is rejected.
+Setting `TLS_KEY_PATH` enables TAIL's own HTTPS listener and requires a matching
+`TLS_CERT_PATH`. In this mode v2 binds the exact certificate snapshot loaded by
+the listener, even if the files later change. Restart TAIL after replacing the
+pair to reload it. A key without a certificate remains a configuration error.
+
+For external TLS, the quote binds the mounted certificate's SPKI and fresh
+nonce. The verifier must compare that SPKI with the actual public TLS peer;
+merely mounting a certificate does not prove it is the one ingress is serving.
+Check the binding after deployment and certificate renewal. V1 behavior and
+authentication are unchanged.

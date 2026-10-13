@@ -36,11 +36,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	// Native evidence collector and existing report v1/v2 semantics are reused.
-	// v2 binds the certificate loaded by this listener. A separate TLS terminator
-	// and backend measurement coverage still require their own verification.
-	report, err := attestation.NewService(attestation.Config{TLSCertSPKISHA256: fingerprint,
-		RequireNVIDIAEvidence: true}, attestation.NewDstackClient(os.Getenv("DSTACK_ENDPOINT"), 3*time.Second))
+	report, err := attestation.NewService(attestationConfigFromEnv(fingerprint),
+		attestation.NewDstackClient(os.Getenv("DSTACK_ENDPOINT"), 3*time.Second))
 	if err != nil {
 		return err
 	}
@@ -76,6 +73,16 @@ func run() error {
 		return nil
 	}
 	return err
+}
+
+func attestationConfigFromEnv(listenerFingerprint []byte) attestation.Config {
+	// A direct TLS listener takes precedence. With external TLS termination,
+	// read its public certificate per report so renewed keys are reflected.
+	return attestation.Config{
+		TLSCertPath:           os.Getenv("TLS_CERT_PATH"),
+		TLSCertSPKISHA256:     listenerFingerprint,
+		RequireNVIDIAEvidence: true,
+	}
 }
 
 func main() {

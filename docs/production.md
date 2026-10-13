@@ -14,7 +14,8 @@ Use the release receipt's immutable `tag@sha256` image for Linux/amd64. Set:
 | `UPSTREAM` | One backend HTTP(S) origin, e.g. `http://sglang:30000` |
 | `LISTEN` | `0.0.0.0:31081` on the private container network |
 | `DSTACK_ENDPOINT` | `/var/run/dstack.sock`, mounted from the local CVM |
-| `TLS_CERT_PATH`, `TLS_KEY_PATH` | Matching certificate/key when TAIL owns TLS |
+| `TLS_CERT_PATH` | Read-only ingress public certificate for v2 attestation, or TAIL's certificate when it owns TLS |
+| `TLS_KEY_PATH` | Set only when TAIL owns TLS; requires a matching certificate |
 | `NVIDIA_VISIBLE_DEVICES` | The intended GPU set |
 | `NVIDIA_DRIVER_CAPABILITIES` | `utility` for native NVML evidence |
 
@@ -26,12 +27,18 @@ filesystem read-only with a small writable `/tmp` tmpfs, bounded Docker logs,
 Healthcheck is exec-form `[/phala-tail, healthcheck]` with timeout 6 seconds,
 interval 10 seconds and retries 3. `/healthz` proves TAIL liveness only.
 
-When HAProxy/ingress owns public TLS, route on the private network and retain its
-independent CPU/GPU/TLS binding verification. A TAIL v1 report is not proof of an
-external terminator's certificate. For TAIL TLS use report v2 and verify its
-fingerprint against that exact listener certificate. Certificate renewal requires
-an orderly TAIL restart after a complete matching pair is written atomically;
-the listener does not hot-reload certificates.
+When HAProxy/ingress owns public TLS, route to TAIL over private HTTP, set
+`TLS_CERT_PATH` and share the ingress evidence volume read-only. Keep
+`TLS_KEY_PATH` unset. Request report v2 with a fresh nonce and verify its SPKI
+fingerprint against the actual public TLS peer, together with CPU/GPU evidence.
+TAIL rereads this external public certificate for every report, including after
+renewal. Ingress must also serve the renewed certificate. Missing or invalid
+certificate files reject v2 reports but do not block listener liveness.
+
+When TAIL owns TLS, verify report v2 against its own listener. Renewing this
+certificate requires an orderly TAIL restart after a matching pair is written
+atomically; the listener does not hot-reload certificates. V1 reports do not
+bind either TLS mode's certificate.
 
 ## Governor Compatibility
 

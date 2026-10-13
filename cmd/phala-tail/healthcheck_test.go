@@ -97,7 +97,7 @@ func TestHealthcheckTimesOut(t *testing.T) {
 func TestHealthcheckRejectsBadConfiguration(t *testing.T) {
 	for _, config := range []healthcheckConfig{
 		{listen: "not-a-listen-address", timeout: time.Second},
-		{listen: "127.0.0.1:31081", certPath: "only-cert", timeout: time.Second},
+		{listen: "127.0.0.1:31081", keyPath: "only-key", timeout: time.Second},
 		{listen: "127.0.0.1:31081", keyPath: "only-key", timeout: time.Second},
 		{listen: "127.0.0.1:31081", timeout: 0},
 	} {

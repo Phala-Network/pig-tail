@@ -7,14 +7,15 @@ import (
 	"fmt"
 )
 
-// loadTLSConfig returns the same certificate snapshot used by the listener and
-// the report service. Changing a PEM file after startup cannot change the report
-// key while the listener continues serving the previously loaded certificate.
+// TLS_CERT_PATH alone supplies an external ingress certificate for attestation.
+// TLS_KEY_PATH opts into a TLS listener with a matching certificate snapshot.
+// Changing a PEM file after startup cannot change the report key while that
+// listener continues serving the previously loaded certificate.
 func loadTLSConfig(certPath, keyPath string) (*tls.Config, []byte, error) {
-	if certPath == "" && keyPath == "" {
+	if keyPath == "" {
 		return nil, nil, nil
 	}
-	if certPath == "" || keyPath == "" {
+	if certPath == "" {
 		return nil, nil, fmt.Errorf("TAIL TLS requires both TLS_CERT_PATH and TLS_KEY_PATH")
 	}
 	certificate, err := tls.LoadX509KeyPair(certPath, keyPath)

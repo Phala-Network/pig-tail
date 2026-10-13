@@ -10,11 +10,15 @@ validation scope and published artifact digest. Component tests, final-image
 checks and target deployment acceptance are separate results. Version metadata
 alone does not establish release qualification.
 
-Check existing workflows before pushing a tag. This repository's current CI
-runs source checks, not automatic image publication. Use the authorized release
-builder for image work, validate the built artifact, publish it once and read
-back its immutable digest. Historical tag backfills must match existing artifact
-source; they do not authorize a rebuild or deployment.
+Check existing workflows before pushing a tag. Pushes run source checks and do
+not publish images. Publish the tag's GitHub Release first, then dispatch
+`release-image.yml` with that tag. The Linux CPU runner verifies the published
+Release, runs race tests and vet, builds the pinned Dockerfile once, tests the
+final image with `scripts/image-smoke.py`, and publishes only after those checks
+pass. It refuses an existing image tag. Read back and record the immutable
+registry digest. CPU image checks do not qualify real dstack/NVML evidence;
+verify that on the target before restoring traffic. Historical tag backfills
+must match existing artifact source; they do not authorize a rebuild or deployment.
 
 Keep release notes concise. Put raw logs and large build artifacts in release
 assets or evidence storage; link to immutable records instead of duplicating

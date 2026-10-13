@@ -44,7 +44,11 @@ NVIDIA container runtime and a release's immutable image digest. Set
 Set and mount `DSTACK_ENDPOINT=/var/run/dstack.sock` for attestation. GPU evidence
 requires a compatible confidential-compute NVML driver. Matching `TLS_CERT_PATH`
 and `TLS_KEY_PATH` enable TAIL TLS and bind the v2 report to that listener's
-certificate. External TLS termination needs independent binding verification.
+certificate. For TLS terminated by ingress, set only `TLS_CERT_PATH` to
+its public certificate in a read-only shared volume. This keeps TAIL's private
+listener on HTTP and needs no private key. The report reads the certificate on
+each request; verify its SPKI against the public TLS connection after deployment
+and certificate renewal. Missing or unreadable certificates reject v2 reports.
 
 See [runtime and TLS details](docs/runtime.md) and the
 [deployment contract](docs/production.md) for configuration and acceptance.

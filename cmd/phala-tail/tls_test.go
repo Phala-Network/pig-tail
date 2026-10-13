@@ -77,7 +77,7 @@ func TestTLSConfigurationRequiresCompleteMatchingPair(t *testing.T) {
 	writeTLSFixture(t, certA, keyA)
 	writeTLSFixture(t, certB, keyB)
 	for _, test := range []struct{ name, cert, key string }{
-		{"missing_key", certA, ""}, {"missing_certificate", "", keyA},
+		{"missing_certificate", "", keyA},
 		{"mismatched_pair", certA, keyB}, {"missing_file", filepath.Join(dir, "absent.pem"), keyA},
 	} {
 		t.Run(test.name, func(t *testing.T) {
