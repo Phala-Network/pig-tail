@@ -6,6 +6,14 @@ TAIL requires TOKEN and UPSTREAM. UPSTREAM must be one HTTP(S) origin without
 userinfo, path, query, or fragment. The proxy always overwrites the upstream
 Authorization header with the same unified Bearer TOKEN.
 
+`POST /v1/embeddings` uses this authenticated opaque forwarding path, including
+single and batch inputs, dimensions, encoding format, vector data and usage.
+The backend owns validation and error responses; TAIL does not parse embedding
+JSON or retry failed requests. Missing or invalid credentials return 401 before
+forwarding. Other methods and noncanonical embedding paths return 404. Use the
+embedding backend's origin as `UPSTREAM`; no embedding-specific configuration
+is required. Requests and responses are not logged.
+
 The authenticated Governor management surface is fixed to
 `GET|PATCH /admin/v1/predictive-policy` and
 `GET /admin/v1/predictive-profile?expected_epoch=...`. TAIL preserves the

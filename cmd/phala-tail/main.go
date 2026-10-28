@@ -16,7 +16,7 @@ import (
 	"github.com/Phala-Network/pig-tail/internal/runtime/attestation"
 )
 
-var version = "v0.1.0"
+var version = "v0.1.5"
 
 func runCommand(args []string, serve func() error, healthcheck func() error) error {
 	if len(args) == 1 {

@@ -5,8 +5,9 @@ services. It forwards opaque OpenAI-compatible requests and streams to one fixed
 backend origin with the deployment's unified bearer token.
 
 The authenticated allowlist also supports `POST /v1/systemone` for kev
-classification. TAIL preserves its request and response without interpreting
-classification output or imposing PIG admission limits.
+classification and `POST /v1/embeddings` for embedding backends. TAIL preserves
+their requests, responses, usage and upstream status without interpreting
+classification output or vectors, or imposing PIG admission limits.
 
 TAIL does not make admission/TPS decisions or own queues and KV cache. Those
 remain with the backend and optional [Governor](https://github.com/Phala-Network/phala-inference-governor).

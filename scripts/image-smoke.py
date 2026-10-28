@@ -12,15 +12,29 @@ import urllib.request
 import uuid
 
 
+EMBEDDINGS = [
+    (b'{"model":"fixture-embedding","input":"query: single","dimensions":2}', 200,
+     b'{"object":"list","data":[{"object":"embedding","index":0,"embedding":[0.5,-0.5]}],"model":"fixture-embedding","usage":{"prompt_tokens":3,"total_tokens":3}}'),
+    (b'{"model":"fixture-embedding","input":["query: alpha","query: beta"],"dimensions":2}', 200,
+     b'{"object":"list","data":[{"object":"embedding","index":0,"embedding":[0.5,-0.5]},{"object":"embedding","index":1,"embedding":[0.25,0.75]}],"model":"fixture-embedding","usage":{"prompt_tokens":6,"total_tokens":6}}'),
+    (b'{"model":"fixture-embedding","input":"fixture","dimensions":-1}', 400,
+     b'{"error":{"message":"unsupported dimensions","type":"invalid_request_error"}}'),
+]
+
+
 class Backend(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
-        assert self.path == "/v1/systemone"
         assert self.headers.get("Authorization") == "Bearer fixture-only-token"
         body = self.rfile.read(int(self.headers["Content-Length"]))
-        self.send_response(202)
+        if self.path == "/v1/systemone":
+            status, response = 202, body
+        else:
+            assert self.path == "/v1/embeddings"
+            status, response = next((status, response) for payload, status, response in EMBEDDINGS if payload == body)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        self.wfile.write(body)
+        self.wfile.write(response)
 
     def log_message(self, *args):
         pass
@@ -75,8 +89,13 @@ def main():
             for token in (None, "wrong"):
                 assert request(path, token)[0] == 401
                 assert request("/v1/systemone", token, b'{}')[0] == 401
+                assert request("/v1/embeddings", token, b'{}')[0] == 401
             payload = b'{"state":"fixture","questions":[]}'
             assert request("/v1/systemone", body=payload) == (202, payload)
+            for embedding_payload, status, response in EMBEDDINGS:
+                assert request("/v1/embeddings", body=embedding_payload) == (status, response)
+            assert request("/v1/embeddings")[0] == 404, "embedding GET must remain outside the allowlist"
+            assert request("/v1/embeddings/", body=b'{}')[0] == 404
             subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
                             "-subj", "/CN=fixture.invalid", "-keyout", str(root / "private.key"),
                             "-out", str(evidence / "ingress.pem")], check=True, capture_output=True)
@@ -84,9 +103,16 @@ def main():
             status, body = request(path)
             assert status == 500 and b"get dstack quote" in body, (status, body)
             docker("exec", name, "/phala-tail", "healthcheck")
+            log_result = subprocess.run(["docker", "logs", name], check=True, capture_output=True, text=True)
+            logs = log_result.stdout + log_result.stderr
+            assert "fixture-only-token" not in logs
+            for embedding_payload, _, response in EMBEDDINGS:
+                assert embedding_payload.decode() not in logs and response.decode() not in logs
             print(json.dumps({"passed": True, "image_id": docker("image", "inspect", image, "--format", "{{.Id}}"),
                               "checks": ["cert-only HTTP startup", "liveness without certificate", "auth rejection",
-                                         "opaque System One forwarding", "late certificate read without private key"],
+                                         "opaque System One forwarding", "embedding single/batch/usage/error forwarding",
+                                         "embedding method/path rejection", "no fixture token or payload logging",
+                                         "late certificate read without private key"],
                               "limitation": "No GPU/TEE signature verification on this CPU runner"}))
         finally:
             subprocess.run(["docker", "rm", "-f", name], capture_output=True)
