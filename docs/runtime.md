@@ -14,6 +14,14 @@ forwarding. Other methods and noncanonical embedding paths return 404. Use the
 embedding backend's origin as `UPSTREAM`; no embedding-specific configuration
 is required. Requests and responses are not logged.
 
+`POST /v1/audio/transcriptions` uses the same authenticated forwarding path.
+Multipart bodies and their `Content-Type` boundary pass through unchanged,
+without parsing or buffering the full upload. The backend owns validation, response
+format and usage. Missing or invalid credentials return 401; other methods and
+noncanonical paths return 404. TAIL imposes no request body size limit. The
+existing two-hour request timeout covers upload and inference; ingress and
+backend limits still apply.
+
 The authenticated Governor management surface is fixed to
 `GET|PATCH /admin/v1/predictive-policy` and
 `GET /admin/v1/predictive-profile?expected_epoch=...`. TAIL preserves the
