@@ -21,6 +21,14 @@ EMBEDDINGS = [
      b'{"error":{"message":"unsupported dimensions","type":"invalid_request_error"}}'),
 ]
 
+AUDIO_CONTENT_TYPE = 'multipart/form-data; boundary="tail-audio-fixture"'
+AUDIO_PAYLOAD = (
+    b'--tail-audio-fixture\r\nContent-Disposition: form-data; name="model"\r\n\r\nfixture-asr\r\n'
+    b'--tail-audio-fixture\r\nContent-Disposition: form-data; name="file"; filename="fixture.wav"\r\n'
+    b'Content-Type: audio/wav\r\n\r\nRIFF\x00\xff\x7fWAVE\r\n--tail-audio-fixture--\r\n'
+)
+AUDIO_RESPONSE = b'{"text":"fixture transcription","usage":{"type":"duration","seconds":1.5}}'
+
 
 class Backend(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
@@ -28,6 +36,10 @@ class Backend(http.server.BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers["Content-Length"]))
         if self.path == "/v1/systemone":
             status, response = 202, body
+        elif self.path == "/v1/audio/transcriptions":
+            assert self.headers.get("Content-Type") == AUDIO_CONTENT_TYPE
+            assert body == AUDIO_PAYLOAD
+            status, response = 200, AUDIO_RESPONSE
         else:
             assert self.path == "/v1/embeddings"
             status, response = next((status, response) for payload, status, response in EMBEDDINGS if payload == body)
@@ -54,8 +66,8 @@ def main():
     port = probe.server_port
     probe.server_close()
 
-    def request(path, token="fixture-only-token", body=None):
-        headers = {"Content-Type": "application/json"}
+    def request(path, token="fixture-only-token", body=None, content_type="application/json"):
+        headers = {"Content-Type": content_type}
         if token is not None:
             headers["Authorization"] = "Bearer " + token
         req = urllib.request.Request(f"http://127.0.0.1:{port}" + path, headers=headers, data=body)
@@ -90,12 +102,16 @@ def main():
                 assert request(path, token)[0] == 401
                 assert request("/v1/systemone", token, b'{}')[0] == 401
                 assert request("/v1/embeddings", token, b'{}')[0] == 401
+                assert request("/v1/audio/transcriptions", token, AUDIO_PAYLOAD, AUDIO_CONTENT_TYPE)[0] == 401
             payload = b'{"state":"fixture","questions":[]}'
             assert request("/v1/systemone", body=payload) == (202, payload)
             for embedding_payload, status, response in EMBEDDINGS:
                 assert request("/v1/embeddings", body=embedding_payload) == (status, response)
             assert request("/v1/embeddings")[0] == 404, "embedding GET must remain outside the allowlist"
             assert request("/v1/embeddings/", body=b'{}')[0] == 404
+            assert request("/v1/audio/transcriptions", body=AUDIO_PAYLOAD, content_type=AUDIO_CONTENT_TYPE) == (200, AUDIO_RESPONSE)
+            assert request("/v1/audio/transcriptions")[0] == 404, "transcription GET must remain outside the allowlist"
+            assert request("/v1/audio/transcriptions/", body=AUDIO_PAYLOAD, content_type=AUDIO_CONTENT_TYPE)[0] == 404
             subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
                             "-subj", "/CN=fixture.invalid", "-keyout", str(root / "private.key"),
                             "-out", str(evidence / "ingress.pem")], check=True, capture_output=True)
@@ -108,10 +124,12 @@ def main():
             assert "fixture-only-token" not in logs
             for embedding_payload, _, response in EMBEDDINGS:
                 assert embedding_payload.decode() not in logs and response.decode() not in logs
+            assert AUDIO_PAYLOAD not in logs.encode() and AUDIO_RESPONSE.decode() not in logs
             print(json.dumps({"passed": True, "image_id": docker("image", "inspect", image, "--format", "{{.Id}}"),
                               "checks": ["cert-only HTTP startup", "liveness without certificate", "auth rejection",
                                          "opaque System One forwarding", "embedding single/batch/usage/error forwarding",
                                          "embedding method/path rejection", "no fixture token or payload logging",
+                                         "audio multipart forwarding", "audio method/path rejection",
                                          "late certificate read without private key"],
                               "limitation": "No GPU/TEE signature verification on this CPU runner"}))
         finally:
