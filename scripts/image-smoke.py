@@ -34,6 +34,8 @@ IMAGE_CONTENT_TYPE = 'multipart/form-data; boundary="tail-image-fixture"'
 MEDIA = {
     "/v1/rerank": ("application/json", b'{"model":"fixture-rerank","query":"q","documents":["a","b"]}',
                    "application/json", b'{"results":[{"index":1,"relevance_score":0.75}],"usage":{"total_tokens":4}}'),
+    "/v1/audio/translations": (AUDIO_CONTENT_TYPE, AUDIO_PAYLOAD, "application/json",
+                               b'{"text":"fixture translation","usage":{"type":"duration","seconds":1.5}}'),
     "/v1/audio/speech": ("application/json", b'{"model":"fixture-tts","input":"fixture","voice":"fixture"}',
                          "audio/mpeg", b'ID3\x00\xff\xfb\x90\x00\r\n\x7f'),
     "/v1/images/generations": ("application/json", b'{"model":"fixture-image","prompt":"fixture","n":1}',
@@ -158,7 +160,7 @@ def main():
                                          "opaque System One forwarding", "embedding single/batch/usage/error forwarding",
                                          "embedding method/path rejection", "no fixture token or payload logging",
                                          "audio multipart forwarding", "audio method/path rejection",
-                                         "rerank/speech/image generation/image edit forwarding",
+                                         "rerank/translation/speech/image generation/image edit forwarding",
                                          "late certificate read without private key"],
                               "limitation": "No GPU/TEE signature verification on this CPU runner"}))
         finally:

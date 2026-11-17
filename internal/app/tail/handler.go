@@ -115,7 +115,7 @@ func authorized(r *http.Request, expected []byte) bool {
 }
 
 func generation(p string) bool {
-	return p == "/v1/chat/completions" || p == "/v1/completions" || p == "/v1/responses"
+	return p == "/v1/chat/completions" || p == "/v1/completions" || p == "/v1/responses" || p == "/v1/messages"
 }
 
 // opaque reports the non-generation endpoints TAIL forwards without interpreting
@@ -123,7 +123,7 @@ func generation(p string) bool {
 func opaque(p string) bool {
 	switch p {
 	case "/v1/systemone", "/v1/embeddings", "/v1/rerank",
-		"/v1/audio/transcriptions", "/v1/audio/speech",
+		"/v1/audio/transcriptions", "/v1/audio/translations", "/v1/audio/speech",
 		"/v1/images/generations", "/v1/images/edits":
 		return true
 	}

@@ -10,16 +10,20 @@ import (
 	"time"
 )
 
-// Rerank, speech and image endpoints use the same opaque transport as
+// Rerank, translation, speech and image endpoints use the same opaque transport as
 // embeddings and transcriptions: JSON or multipart in, JSON or binary out.
 func TestMediaEndpointsAuthenticationAndOpaqueForwarding(t *testing.T) {
-	const multipart = `multipart/form-data; boundary="tail-image+fixture"`
+	const multipart = `multipart/form-data; boundary="tail-media+fixture"`
 	cases := []struct {
 		path, requestType, payload, responseType, response string
 	}{
 		{"/v1/rerank", "application/json",
 			`{"model":"fixture-rerank","query":"q","documents":["a","b"],"top_n":1}`, "application/json",
 			`{"id":"fixture","results":[{"index":1,"relevance_score":0.75}],"usage":{"prompt_tokens":4,"total_tokens":4}}`},
+		{"/v1/audio/translations", multipart,
+			"--tail-media+fixture\r\nContent-Disposition: form-data; name=\"file\"; filename=\"fixture.wav\"\r\nContent-Type: audio/wav\r\n\r\n\x00\xff\x7f\r\n" +
+				"--tail-media+fixture--\r\n", "application/json",
+			`{"text":"fixture translation","usage":{"type":"duration","seconds":1.5}}`},
 		{"/v1/audio/speech", "application/json",
 			`{"model":"fixture-tts","input":"fixture","voice":"fixture"}`, "audio/mpeg",
 			"ID3\x00\xff\xfb\x90\x00\r\n\x7f"},
@@ -27,9 +31,9 @@ func TestMediaEndpointsAuthenticationAndOpaqueForwarding(t *testing.T) {
 			`{"model":"fixture-image","prompt":"fixture","n":1,"response_format":"b64_json"}`, "application/json",
 			`{"created":1,"data":[{"b64_json":"AP9/"}]}`},
 		{"/v1/images/edits", multipart,
-			"--tail-image+fixture\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nfixture\r\n" +
-				"--tail-image+fixture\r\nContent-Disposition: form-data; name=\"image\"; filename=\"fixture.png\"\r\nContent-Type: image/png\r\n\r\n\x89PNG\x00\xff\r\n" +
-				"--tail-image+fixture--\r\n", "application/json",
+			"--tail-media+fixture\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nfixture\r\n" +
+				"--tail-media+fixture\r\nContent-Disposition: form-data; name=\"image\"; filename=\"fixture.png\"\r\nContent-Type: image/png\r\n\r\n\x89PNG\x00\xff\r\n" +
+				"--tail-media+fixture--\r\n", "application/json",
 			`{"created":1,"data":[{"b64_json":"AP9/"}]}`},
 	}
 	for _, c := range cases {

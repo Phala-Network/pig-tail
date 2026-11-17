@@ -6,9 +6,10 @@ backend origin with the deployment's unified bearer token.
 
 The authenticated allowlist also supports `POST /v1/systemone` for kev
 classification, `POST /v1/embeddings`, `POST /v1/rerank`,
-`POST /v1/audio/transcriptions`, `POST /v1/audio/speech`,
-`POST /v1/images/generations` and `POST /v1/images/edits` for the matching
-backends. TAIL preserves their requests, responses, usage and upstream status
+`POST /v1/audio/transcriptions`, `POST /v1/audio/translations`,
+`POST /v1/audio/speech`, `POST /v1/images/generations` and
+`POST /v1/images/edits` for the matching backends, and `POST /v1/messages`
+beside the other generation routes. TAIL preserves their requests, responses, usage and upstream status
 without interpreting classification output, vectors, scores, multipart uploads
 or binary audio, or imposing PIG admission limits.
 

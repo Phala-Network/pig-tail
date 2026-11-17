@@ -67,7 +67,7 @@ func TestCanonicalWhitelistAndAuthenticationNeverReachBackend(t *testing.T) {
 			t.Fatalf("unauthorized %s: %d", p, w.Code)
 		}
 	}
-	for _, p := range []string{"/v1/chat/completions", "/v1/completions", "/v1/responses"} {
+	for _, p := range []string{"/v1/chat/completions", "/v1/completions", "/v1/responses", "/v1/messages"} {
 		if w := call(h, http.MethodPost, p, "{}", false); w.Code != http.StatusUnauthorized {
 			t.Fatal(p, w.Code)
 		}
@@ -103,13 +103,13 @@ func TestInferenceForwardsOpaqueBodyWithoutNativeEpoch(t *testing.T) {
 		w.WriteHeader(http.StatusTooManyRequests)
 		_, _ = io.WriteString(w, `{"error":{"message":"native rejection"}}`)
 	}), nil, time.Second)
-	for _, p := range []string{"/v1/chat/completions", "/v1/completions", "/v1/responses"} {
+	for _, p := range []string{"/v1/chat/completions", "/v1/completions", "/v1/responses", "/v1/messages"} {
 		w := call(h, http.MethodPost, p, "not json", true)
 		if w.Code != http.StatusTooManyRequests || w.Body.String() != `{"error":{"message":"native rejection"}}` {
 			t.Fatal(w.Code, w.Body.String())
 		}
 	}
-	if calls != 3 {
+	if calls != 4 {
 		t.Fatal("inference was not forwarded", calls)
 	}
 }
