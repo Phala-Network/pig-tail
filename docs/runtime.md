@@ -14,26 +14,16 @@ forwarding. Other methods and noncanonical embedding paths return 404. Use the
 embedding backend's origin as `UPSTREAM`; no embedding-specific configuration
 is required. Requests and responses are not logged.
 
-`POST /v1/audio/transcriptions` uses the same authenticated forwarding path.
-Multipart bodies and their `Content-Type` boundary pass through unchanged,
-without parsing or buffering the full upload. The backend owns validation, response
-format and usage. Missing or invalid credentials return 401; other methods and
-noncanonical paths return 404. TAIL imposes no request body size limit. The
-existing two-hour request timeout covers upload and inference; ingress and
-backend limits still apply.
-
-`POST /v1/rerank`, `POST /v1/audio/translations`, `POST /v1/audio/speech`,
-`POST /v1/images/generations` and `POST /v1/images/edits` follow the same
-contract. JSON and multipart request
-bodies, and JSON or binary response bodies with their `Content-Type`, pass
-through unchanged. One backend origin serves one deployment, so the allowlist
-does not depend on the backend's modality; a backend that lacks a route answers
-with its own error. Other audio and image paths remain outside the allowlist.
-
-`POST /v1/messages` joins the generation routes (`/v1/chat/completions`,
-`/v1/completions`, `/v1/responses`) for backends that serve the Anthropic
-Messages format. TAIL authenticates it with the same `Authorization: Bearer`
-token; an `x-api-key` header alone is rejected with 401.
+`POST /v1/rerank`, `/v1/audio/transcriptions`, `/v1/audio/translations`,
+`/v1/audio/speech`, `/v1/images/generations` and `/v1/images/edits` use the
+same forwarding path, and `POST /v1/messages` joins the generation routes.
+JSON and multipart request bodies, with their `Content-Type` boundary, and
+JSON, SSE or binary responses pass through unchanged, without parsing or
+buffering the full upload. All of them authenticate with
+`Authorization: Bearer`; `x-api-key` alone returns 401. TAIL imposes no request
+body size limit: the existing two-hour request timeout covers upload and
+inference, and ingress and backend limits still apply. A backend that lacks a
+route answers with its own error.
 
 The authenticated Governor management surface is fixed to
 `GET|PATCH /admin/v1/predictive-policy` and

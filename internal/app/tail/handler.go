@@ -114,15 +114,12 @@ func authorized(r *http.Request, expected []byte) bool {
 	return len(values) == 1 && subtle.ConstantTimeCompare([]byte(values[0]), expected) == 1
 }
 
-func generation(p string) bool {
-	return p == "/v1/chat/completions" || p == "/v1/completions" || p == "/v1/responses" || p == "/v1/messages"
-}
-
-// opaque reports the non-generation endpoints TAIL forwards without interpreting
+// forwarded reports the POST endpoints TAIL forwards without interpreting
 // their request or response bodies.
-func opaque(p string) bool {
+func forwarded(p string) bool {
 	switch p {
-	case "/v1/systemone", "/v1/embeddings", "/v1/rerank",
+	case "/v1/chat/completions", "/v1/completions", "/v1/responses", "/v1/messages",
+		"/v1/systemone", "/v1/embeddings", "/v1/rerank",
 		"/v1/audio/transcriptions", "/v1/audio/translations", "/v1/audio/speech",
 		"/v1/images/generations", "/v1/images/edits":
 		return true
@@ -149,7 +146,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	management := p == "/pig/metrics" || p == "/v1/metrics" || p == "/v1/upstream-status" ||
 		p == "/admin/v1/predictive-policy" || p == "/admin/v1/predictive-profile" ||
 		p == "/v1/attestation/report"
-	public := ((generation(p) || opaque(p)) && r.Method == http.MethodPost) || (p == "/v1/models" && r.Method == http.MethodGet)
+	public := (forwarded(p) && r.Method == http.MethodPost) || (p == "/v1/models" && r.Method == http.MethodGet)
 	if !management && !public {
 		openai.WriteNotFound(w)
 		return

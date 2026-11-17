@@ -34,6 +34,7 @@ IMAGE_CONTENT_TYPE = 'multipart/form-data; boundary="tail-image-fixture"'
 MEDIA = {
     "/v1/rerank": ("application/json", b'{"model":"fixture-rerank","query":"q","documents":["a","b"]}',
                    "application/json", b'{"results":[{"index":1,"relevance_score":0.75}],"usage":{"total_tokens":4}}'),
+    "/v1/audio/transcriptions": (AUDIO_CONTENT_TYPE, AUDIO_PAYLOAD, "application/json", AUDIO_RESPONSE),
     "/v1/audio/translations": (AUDIO_CONTENT_TYPE, AUDIO_PAYLOAD, "application/json",
                                b'{"text":"fixture translation","usage":{"type":"duration","seconds":1.5}}'),
     "/v1/audio/speech": ("application/json", b'{"model":"fixture-tts","input":"fixture","voice":"fixture"}',
@@ -60,10 +61,6 @@ class Backend(http.server.BaseHTTPRequestHandler):
             assert self.headers.get("Content-Type") == request_type
             assert body == payload
             status = 200
-        elif self.path == "/v1/audio/transcriptions":
-            assert self.headers.get("Content-Type") == AUDIO_CONTENT_TYPE
-            assert body == AUDIO_PAYLOAD
-            status, response = 200, AUDIO_RESPONSE
         else:
             assert self.path == "/v1/embeddings"
             status, response = next((status, response) for payload, status, response in EMBEDDINGS if payload == body)
@@ -126,7 +123,6 @@ def main():
                 assert request(path, token)[0] == 401
                 assert request("/v1/systemone", token, b'{}')[0] == 401
                 assert request("/v1/embeddings", token, b'{}')[0] == 401
-                assert request("/v1/audio/transcriptions", token, AUDIO_PAYLOAD, AUDIO_CONTENT_TYPE)[0] == 401
                 for media_path, (request_type, media_payload, _, _) in MEDIA.items():
                     assert request(media_path, token, media_payload, request_type)[0] == 401
             payload = b'{"state":"fixture","questions":[]}'
@@ -135,9 +131,6 @@ def main():
                 assert request("/v1/embeddings", body=embedding_payload) == (status, response)
             assert request("/v1/embeddings")[0] == 404, "embedding GET must remain outside the allowlist"
             assert request("/v1/embeddings/", body=b'{}')[0] == 404
-            assert request("/v1/audio/transcriptions", body=AUDIO_PAYLOAD, content_type=AUDIO_CONTENT_TYPE) == (200, AUDIO_RESPONSE)
-            assert request("/v1/audio/transcriptions")[0] == 404, "transcription GET must remain outside the allowlist"
-            assert request("/v1/audio/transcriptions/", body=AUDIO_PAYLOAD, content_type=AUDIO_CONTENT_TYPE)[0] == 404
             for media_path, (request_type, media_payload, _, response) in MEDIA.items():
                 assert request(media_path, body=media_payload, content_type=request_type) == (200, response)
             subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
@@ -152,15 +145,13 @@ def main():
             assert "fixture-only-token" not in logs
             for embedding_payload, _, response in EMBEDDINGS:
                 assert embedding_payload.decode() not in logs and response.decode() not in logs
-            assert AUDIO_PAYLOAD not in logs.encode() and AUDIO_RESPONSE.decode() not in logs
             for _, media_payload, _, response in MEDIA.values():
                 assert media_payload not in logs.encode() and response not in logs.encode()
             print(json.dumps({"passed": True, "image_id": docker("image", "inspect", image, "--format", "{{.Id}}"),
                               "checks": ["cert-only HTTP startup", "liveness without certificate", "auth rejection",
                                          "opaque System One forwarding", "embedding single/batch/usage/error forwarding",
                                          "embedding method/path rejection", "no fixture token or payload logging",
-                                         "audio multipart forwarding", "audio method/path rejection",
-                                         "rerank/translation/speech/image generation/image edit forwarding",
+                                         "audio/image/rerank forwarding",
                                          "late certificate read without private key"],
                               "limitation": "No GPU/TEE signature verification on this CPU runner"}))
         finally:
