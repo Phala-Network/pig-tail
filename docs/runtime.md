@@ -21,9 +21,10 @@ JSON and multipart request bodies, with their `Content-Type` boundary, and
 JSON, SSE or binary responses pass through unchanged, without parsing or
 buffering the full upload. All of them authenticate with
 `Authorization: Bearer`; `x-api-key` alone returns 401. TAIL imposes no request
-body size limit: the existing two-hour request timeout covers upload and
-inference, and ingress and backend limits still apply. A backend that lacks a
-route answers with its own error.
+body size limit. The existing two-hour request context deadline cancels
+upstream work but is not a socket read or idle timeout for stalled client
+uploads. Ingress must enforce upload read/idle timeouts; backend limits still
+apply. A backend that lacks a route answers with its own error.
 
 The authenticated Governor management surface is fixed to
 `GET|PATCH /admin/v1/predictive-policy` and
