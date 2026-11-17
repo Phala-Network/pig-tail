@@ -14,6 +14,18 @@ forwarding. Other methods and noncanonical embedding paths return 404. Use the
 embedding backend's origin as `UPSTREAM`; no embedding-specific configuration
 is required. Requests and responses are not logged.
 
+`POST /v1/rerank`, `/v1/audio/transcriptions`, `/v1/audio/translations`,
+`/v1/audio/speech`, `/v1/images/generations` and `/v1/images/edits` use the
+same forwarding path, and `POST /v1/messages` joins the generation routes.
+JSON and multipart request bodies, with their `Content-Type` boundary, and
+JSON, SSE or binary responses pass through unchanged, without parsing or
+buffering the full upload. All of them authenticate with
+`Authorization: Bearer`; `x-api-key` alone returns 401. TAIL imposes no request
+body size limit. The existing two-hour request context deadline cancels
+upstream work but is not a socket read or idle timeout for stalled client
+uploads. Ingress must enforce upload read/idle timeouts; backend limits still
+apply. A backend that lacks a route answers with its own error.
+
 The authenticated Governor management surface is fixed to
 `GET|PATCH /admin/v1/predictive-policy` and
 `GET /admin/v1/predictive-profile?expected_epoch=...`. TAIL preserves the
