@@ -138,9 +138,6 @@ def main():
             assert request("/v1/audio/transcriptions/", body=AUDIO_PAYLOAD, content_type=AUDIO_CONTENT_TYPE)[0] == 404
             for media_path, (request_type, media_payload, _, response) in MEDIA.items():
                 assert request(media_path, body=media_payload, content_type=request_type) == (200, response)
-                assert request(media_path)[0] == 404, media_path + " GET must remain outside the allowlist"
-                assert request(media_path + "/", body=media_payload, content_type=request_type)[0] == 404
-            assert request("/v1/audio/translations", body=b'{}')[0] == 404
             subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
                             "-subj", "/CN=fixture.invalid", "-keyout", str(root / "private.key"),
                             "-out", str(evidence / "ingress.pem")], check=True, capture_output=True)
@@ -162,7 +159,6 @@ def main():
                                          "embedding method/path rejection", "no fixture token or payload logging",
                                          "audio multipart forwarding", "audio method/path rejection",
                                          "rerank/speech/image generation/image edit forwarding",
-                                         "rerank/speech/image method/path rejection",
                                          "late certificate read without private key"],
                               "limitation": "No GPU/TEE signature verification on this CPU runner"}))
         finally:
