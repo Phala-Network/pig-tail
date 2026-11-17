@@ -29,13 +29,35 @@ AUDIO_PAYLOAD = (
 )
 AUDIO_RESPONSE = b'{"text":"fixture transcription","usage":{"type":"duration","seconds":1.5}}'
 
+IMAGE_CONTENT_TYPE = 'multipart/form-data; boundary="tail-image-fixture"'
+# path: (request content type, request body, response content type, response body)
+MEDIA = {
+    "/v1/rerank": ("application/json", b'{"model":"fixture-rerank","query":"q","documents":["a","b"]}',
+                   "application/json", b'{"results":[{"index":1,"relevance_score":0.75}],"usage":{"total_tokens":4}}'),
+    "/v1/audio/speech": ("application/json", b'{"model":"fixture-tts","input":"fixture","voice":"fixture"}',
+                         "audio/mpeg", b'ID3\x00\xff\xfb\x90\x00\r\n\x7f'),
+    "/v1/images/generations": ("application/json", b'{"model":"fixture-image","prompt":"fixture","n":1}',
+                               "application/json", b'{"created":1,"data":[{"b64_json":"AP9/"}]}'),
+    "/v1/images/edits": (IMAGE_CONTENT_TYPE,
+                         b'--tail-image-fixture\r\nContent-Disposition: form-data; name="prompt"\r\n\r\nfixture\r\n'
+                         b'--tail-image-fixture\r\nContent-Disposition: form-data; name="image"; filename="fixture.png"\r\n'
+                         b'Content-Type: image/png\r\n\r\n\x89PNG\x00\xff\r\n--tail-image-fixture--\r\n',
+                         "application/json", b'{"created":1,"data":[{"b64_json":"AP9/"}]}'),
+}
+
 
 class Backend(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         assert self.headers.get("Authorization") == "Bearer fixture-only-token"
         body = self.rfile.read(int(self.headers["Content-Length"]))
+        content_type = "application/json"
         if self.path == "/v1/systemone":
             status, response = 202, body
+        elif self.path in MEDIA:
+            request_type, payload, content_type, response = MEDIA[self.path]
+            assert self.headers.get("Content-Type") == request_type
+            assert body == payload
+            status = 200
         elif self.path == "/v1/audio/transcriptions":
             assert self.headers.get("Content-Type") == AUDIO_CONTENT_TYPE
             assert body == AUDIO_PAYLOAD
@@ -44,7 +66,7 @@ class Backend(http.server.BaseHTTPRequestHandler):
             assert self.path == "/v1/embeddings"
             status, response = next((status, response) for payload, status, response in EMBEDDINGS if payload == body)
         self.send_response(status)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", content_type)
         self.end_headers()
         self.wfile.write(response)
 
@@ -103,6 +125,8 @@ def main():
                 assert request("/v1/systemone", token, b'{}')[0] == 401
                 assert request("/v1/embeddings", token, b'{}')[0] == 401
                 assert request("/v1/audio/transcriptions", token, AUDIO_PAYLOAD, AUDIO_CONTENT_TYPE)[0] == 401
+                for media_path, (request_type, media_payload, _, _) in MEDIA.items():
+                    assert request(media_path, token, media_payload, request_type)[0] == 401
             payload = b'{"state":"fixture","questions":[]}'
             assert request("/v1/systemone", body=payload) == (202, payload)
             for embedding_payload, status, response in EMBEDDINGS:
@@ -112,6 +136,11 @@ def main():
             assert request("/v1/audio/transcriptions", body=AUDIO_PAYLOAD, content_type=AUDIO_CONTENT_TYPE) == (200, AUDIO_RESPONSE)
             assert request("/v1/audio/transcriptions")[0] == 404, "transcription GET must remain outside the allowlist"
             assert request("/v1/audio/transcriptions/", body=AUDIO_PAYLOAD, content_type=AUDIO_CONTENT_TYPE)[0] == 404
+            for media_path, (request_type, media_payload, _, response) in MEDIA.items():
+                assert request(media_path, body=media_payload, content_type=request_type) == (200, response)
+                assert request(media_path)[0] == 404, media_path + " GET must remain outside the allowlist"
+                assert request(media_path + "/", body=media_payload, content_type=request_type)[0] == 404
+            assert request("/v1/audio/translations", body=b'{}')[0] == 404
             subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
                             "-subj", "/CN=fixture.invalid", "-keyout", str(root / "private.key"),
                             "-out", str(evidence / "ingress.pem")], check=True, capture_output=True)
@@ -125,11 +154,15 @@ def main():
             for embedding_payload, _, response in EMBEDDINGS:
                 assert embedding_payload.decode() not in logs and response.decode() not in logs
             assert AUDIO_PAYLOAD not in logs.encode() and AUDIO_RESPONSE.decode() not in logs
+            for _, media_payload, _, response in MEDIA.values():
+                assert media_payload not in logs.encode() and response not in logs.encode()
             print(json.dumps({"passed": True, "image_id": docker("image", "inspect", image, "--format", "{{.Id}}"),
                               "checks": ["cert-only HTTP startup", "liveness without certificate", "auth rejection",
                                          "opaque System One forwarding", "embedding single/batch/usage/error forwarding",
                                          "embedding method/path rejection", "no fixture token or payload logging",
                                          "audio multipart forwarding", "audio method/path rejection",
+                                         "rerank/speech/image generation/image edit forwarding",
+                                         "rerank/speech/image method/path rejection",
                                          "late certificate read without private key"],
                               "limitation": "No GPU/TEE signature verification on this CPU runner"}))
         finally:

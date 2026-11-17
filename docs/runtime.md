@@ -22,6 +22,14 @@ noncanonical paths return 404. TAIL imposes no request body size limit. The
 existing two-hour request timeout covers upload and inference; ingress and
 backend limits still apply.
 
+`POST /v1/rerank`, `POST /v1/audio/speech`, `POST /v1/images/generations` and
+`POST /v1/images/edits` follow the same contract. JSON and multipart request
+bodies, and JSON or binary response bodies with their `Content-Type`, pass
+through unchanged. One backend origin serves one deployment, so the allowlist
+does not depend on the backend's modality; a backend that lacks a route answers
+with its own error. Other audio and image paths, including
+`/v1/audio/translations`, remain outside the allowlist.
+
 The authenticated Governor management surface is fixed to
 `GET|PATCH /admin/v1/predictive-policy` and
 `GET /admin/v1/predictive-profile?expected_epoch=...`. TAIL preserves the

@@ -118,6 +118,18 @@ func generation(p string) bool {
 	return p == "/v1/chat/completions" || p == "/v1/completions" || p == "/v1/responses"
 }
 
+// opaque reports the non-generation endpoints TAIL forwards without interpreting
+// their request or response bodies.
+func opaque(p string) bool {
+	switch p {
+	case "/v1/systemone", "/v1/embeddings", "/v1/rerank",
+		"/v1/audio/transcriptions", "/v1/audio/speech",
+		"/v1/images/generations", "/v1/images/edits":
+		return true
+	}
+	return false
+}
+
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p, ok := canonical(r)
 	if !ok {
@@ -137,8 +149,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	management := p == "/pig/metrics" || p == "/v1/metrics" || p == "/v1/upstream-status" ||
 		p == "/admin/v1/predictive-policy" || p == "/admin/v1/predictive-profile" ||
 		p == "/v1/attestation/report"
-	// Classification, embedding and transcription endpoints share the opaque transport path.
-	public := ((generation(p) || p == "/v1/systemone" || p == "/v1/embeddings" || p == "/v1/audio/transcriptions") && r.Method == http.MethodPost) || (p == "/v1/models" && r.Method == http.MethodGet)
+	public := ((generation(p) || opaque(p)) && r.Method == http.MethodPost) || (p == "/v1/models" && r.Method == http.MethodGet)
 	if !management && !public {
 		openai.WriteNotFound(w)
 		return
