@@ -35,8 +35,9 @@ paths remain outside the allowlist and return 404.
 
 DSTACK_ENDPOINT should be set explicitly to /var/run/dstack.sock in production,
 with that Unix socket mounted into the container. TAIL obtains GetQuote and Info
-through this local dstack RPC endpoint. Do not use DSTACK_SIMULATOR_ENDPOINT for
-a production deployment.
+through this local dstack RPC endpoint. Each RPC has a 20-second timeout to
+allow for queued TDX quotes during concurrent attestation requests. Do not use
+DSTACK_SIMULATOR_ENDPOINT for a production deployment.
 
 The native NVIDIA evidence collector is built only on Linux with CGO enabled.
 At runtime it dynamically opens libnvidia-ml.so.1 and requires the NVIDIA
