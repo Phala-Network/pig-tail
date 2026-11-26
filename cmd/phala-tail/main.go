@@ -18,6 +18,12 @@ import (
 
 var version = "v0.1.6"
 
+// The guest agent serializes quote generation, which takes about one second
+// per quote as observed on TDX GPU CVMs. Info also produces a quote. Each
+// report has one RPC outstanding at a time, so 20 seconds per RPC covers a
+// burst of 16 concurrent reports with room for timing variation.
+const dstackRPCTimeout = 20 * time.Second
+
 func runCommand(args []string, serve func() error, healthcheck func() error) error {
 	if len(args) == 1 {
 		return serve()
@@ -37,7 +43,7 @@ func run() error {
 		return err
 	}
 	report, err := attestation.NewService(attestationConfigFromEnv(fingerprint),
-		attestation.NewDstackClient(os.Getenv("DSTACK_ENDPOINT"), 3*time.Second))
+		attestation.NewDstackClient(os.Getenv("DSTACK_ENDPOINT"), dstackRPCTimeout))
 	if err != nil {
 		return err
 	}
