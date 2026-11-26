@@ -18,10 +18,10 @@ import (
 
 var version = "v0.1.6"
 
-// GetQuote and Info each take about one second on the guest agent's shared
-// quote queue. Each report has one RPC outstanding at a time, so 20 seconds
-// per RPC covers a burst of 16 reports (eight upstreams on two verifiers)
-// with room for timing variation.
+// The guest agent serializes quote generation, which takes about one second
+// per quote as observed on TDX GPU CVMs. Info also produces a quote. Each
+// report has one RPC outstanding at a time, so 20 seconds per RPC covers a
+// burst of 16 concurrent reports with room for timing variation.
 const dstackRPCTimeout = 20 * time.Second
 
 func runCommand(args []string, serve func() error, healthcheck func() error) error {
